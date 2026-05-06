@@ -1,0 +1,16 @@
+{
+  "name": "ens492-month1-backend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Month 1 MVP backend for ENS492 fitness app",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node src/server.js",
+    "test": "node --test",
+    "smoke": "node scripts/month1-smoke.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

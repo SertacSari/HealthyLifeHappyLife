@@ -1,0 +1,49 @@
+{
+  "users": [
+    {
+      "id": 1,
+      "email": "mvp@example.com",
+      "passwordHash": "f557b04c76f0c4d43ad1ab420fe1841f1cca3734c1089dc8ad01f249bfb12d50f66ef6519a6c091dc2b912b40af8a07e6cae91f6684704917f031fb7fff13742",
+      "passwordSalt": "93485ee1233d1e551dd6478c4b067b7b",
+      "createdAt": "2026-05-06T07:00:26.742Z"
+    }
+  ],
+  "profiles": [
+    {
+      "userId": 1,
+      "name": "Updated MVP",
+      "goalCalories": 2200,
+      "goalWorkoutsPerWeek": 4,
+      "updatedAt": "2026-05-06T07:00:26.779Z"
+    }
+  ],
+  "meals": [
+    {
+      "id": 1,
+      "userId": 1,
+      "name": "Chicken Bowl",
+      "calories": 650,
+      "protein": 45,
+      "carbs": 50,
+      "fats": 20,
+      "loggedAt": "2026-05-06T07:00:26.779Z"
+    }
+  ],
+  "workouts": [
+    {
+      "id": 1,
+      "userId": 1,
+      "name": "Push Day",
+      "durationMinutes": 60,
+      "caloriesBurned": 350,
+      "loggedAt": "2026-05-06T07:00:26.779Z"
+    }
+  ],
+  "counters": {
+    "user": 2,
+    "meal": 2,
+    "workout": 2
+  },
+  "reminders": [],
+  "follows": []
+}
