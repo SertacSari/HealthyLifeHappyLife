@@ -157,6 +157,12 @@ Response:
 
 `GET /recommendations/daily?date=YYYY-MM-DD` (Bearer token required, `date` optional)
 
+Notes:
+
+- response includes at most 4 tips (priority-ranked)
+- tip `area` is one of: `nutrition`, `workout`, `recovery`, `consistency`
+- all outputs are non-medical wellness guidance and include a fixed non-medical disclaimer
+
 Response:
 
 ```json
@@ -166,9 +172,24 @@ Response:
     "disclaimer": "General wellness guidance only. This app does not provide medical advice, diagnosis, or treatment.",
     "tips": [
       {
+        "area": "consistency",
+        "title": "No activity logs yet today",
+        "message": "Start with one meal log or a short walk to build daily momentum."
+      },
+      {
         "area": "nutrition",
-        "title": "Protein appears low",
-        "message": "Aim for an extra lean protein serving in your next meal."
+        "title": "Calorie intake is far below goal",
+        "message": "Add a balanced meal with protein, complex carbs, and healthy fats."
+      },
+      {
+        "area": "nutrition",
+        "title": "Protein intake appears low",
+        "message": "Aim to include 25-35g protein in your next meal."
+      },
+      {
+        "area": "workout",
+        "title": "No workout logged today",
+        "message": "A 20-30 minute walk or bodyweight session can keep your routine active."
       }
     ]
   }

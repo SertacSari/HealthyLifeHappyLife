@@ -251,67 +251,231 @@ function updateReminderSettings(db, userId, input) {
   return settings;
 }
 
+const NON_MEDICAL_DISCLAIMER =
+  "General wellness guidance only. This app does not provide medical advice, diagnosis, or treatment.";
+const ALLOWED_RECOMMENDATION_AREAS = new Set(["nutrition", "workout", "recovery", "consistency"]);
+const SAFETY_BLOCKLIST = [
+  /\bdiagnos(e|is|ed|ing)\b/i,
+  /\btreat(ment|ed|ing)?\b/i,
+  /\bcure(d|s|ing)?\b/i,
+  /\bprescrib(e|ed|ing)?\b/i,
+  /\bmedication(s)?\b/i,
+  /\bdisease(s)?\b/i
+];
+
+function containsBlockedMedicalTerms(text) {
+  return SAFETY_BLOCKLIST.some((pattern) => pattern.test(text));
+}
+
+function createSafeTip(area, title, message, fallbackTitle, fallbackMessage) {
+  const safeArea = ALLOWED_RECOMMENDATION_AREAS.has(area) ? area : "consistency";
+  const nextTitle = typeof title === "string" ? title.trim() : "";
+  const nextMessage = typeof message === "string" ? message.trim() : "";
+  if (!nextTitle || !nextMessage || containsBlockedMedicalTerms(nextTitle) || containsBlockedMedicalTerms(nextMessage)) {
+    return {
+      area: safeArea,
+      title: fallbackTitle,
+      message: fallbackMessage
+    };
+  }
+  return {
+    area: safeArea,
+    title: nextTitle,
+    message: nextMessage
+  };
+}
+
+function enforceRecommendationSafety(recommendations) {
+  const fallbackDisclaimer = NON_MEDICAL_DISCLAIMER;
+  const disclaimer =
+    typeof recommendations.disclaimer === "string" && recommendations.disclaimer.trim().length > 0
+      ? recommendations.disclaimer.trim()
+      : fallbackDisclaimer;
+  const safeDisclaimer = containsBlockedMedicalTerms(disclaimer) ? fallbackDisclaimer : disclaimer;
+
+  const safeTips = Array.isArray(recommendations.tips)
+    ? recommendations.tips.map((tip) =>
+        createSafeTip(
+          tip.area,
+          tip.title,
+          tip.message,
+          "Keep building consistency",
+          "Small, repeatable healthy actions usually work better than extreme changes."
+        )
+      )
+    : [];
+
+  return {
+    date: recommendations.date,
+    disclaimer: safeDisclaimer,
+    tips: safeTips
+  };
+}
+
 function getDailyRecommendations(db, userId, date) {
+  const userExists = db.users.some((user) => user.id === userId);
+  if (!userExists) {
+    throw createAppError("User not found", 404);
+  }
+
   const summary = getDashboardSummary(db, userId, date);
-  const tips = [];
+  const candidates = [];
+
+  if (summary.mealsCount === 0 && summary.workoutsCount === 0) {
+    candidates.push({
+      priority: 100,
+      tip: {
+        area: "consistency",
+        title: "No activity logs yet today",
+        message: "Start with one meal log or a short walk to build daily momentum."
+      }
+    });
+  }
 
   if (summary.goals) {
     const calorieGap = summary.goals.goalCalories - summary.totalCaloriesIn;
-    if (calorieGap > 500) {
-      tips.push({
-        area: "nutrition",
-        title: "Calorie intake is low today",
-        message: "Add one balanced meal or snack with protein and complex carbs."
+    if (calorieGap >= 700) {
+      candidates.push({
+        priority: 90,
+        tip: {
+          area: "nutrition",
+          title: "Calorie intake is far below goal",
+          message: "Add a balanced meal with protein, complex carbs, and healthy fats."
+        }
       });
-    } else if (calorieGap < -400) {
-      tips.push({
-        area: "nutrition",
-        title: "Calorie intake is above goal",
-        message: "Try lower-calorie, high-protein options for your next meal."
+    } else if (calorieGap >= 300) {
+      candidates.push({
+        priority: 80,
+        tip: {
+          area: "nutrition",
+          title: "Calorie intake is below goal",
+          message: "Add a light snack with protein and complex carbs to close the gap."
+        }
+      });
+    } else if (calorieGap <= -600) {
+      candidates.push({
+        priority: 85,
+        tip: {
+          area: "nutrition",
+          title: "Calorie intake is far above goal",
+          message: "Choose lighter, high-protein meals for the rest of the day."
+        }
+      });
+    } else if (calorieGap <= -250) {
+      candidates.push({
+        priority: 75,
+        tip: {
+          area: "nutrition",
+          title: "Calorie intake is above goal",
+          message: "Use smaller portions in your next meal and hydrate before eating."
+        }
       });
     } else {
-      tips.push({
-        area: "nutrition",
-        title: "Calorie target is on track",
-        message: "Keep portions consistent and hydration steady."
+      candidates.push({
+        priority: 50,
+        tip: {
+          area: "nutrition",
+          title: "Calorie target is on track",
+          message: "Keep meal timing and hydration consistent through the day."
+        }
       });
     }
   }
 
-  if (summary.macros.protein < 60) {
-    tips.push({
-      area: "nutrition",
-      title: "Protein appears low",
-      message: "Aim for an extra lean protein serving in your next meal."
-    });
+  if (summary.mealsCount > 0) {
+    const estimatedProteinTarget = Math.max(60, Math.round((summary.goals ? summary.goals.goalCalories : 2000) * 0.035));
+    const proteinGap = estimatedProteinTarget - summary.macros.protein;
+    if (proteinGap > 35) {
+      candidates.push({
+        priority: 92,
+        tip: {
+          area: "nutrition",
+          title: "Protein intake appears low",
+          message: "Aim to include 25-35g protein in your next meal."
+        }
+      });
+    } else if (proteinGap > 15) {
+      candidates.push({
+        priority: 70,
+        tip: {
+          area: "nutrition",
+          title: "Protein could be improved",
+          message: "Add a moderate lean-protein source such as yogurt, eggs, or legumes."
+        }
+      });
+    } else {
+      candidates.push({
+        priority: 40,
+        tip: {
+          area: "nutrition",
+          title: "Protein balance looks solid",
+          message: "Maintain similar protein distribution across meals."
+        }
+      });
+    }
   }
 
   if (summary.workoutMinutes === 0) {
-    tips.push({
-      area: "workout",
-      title: "No workout logged today",
-      message: "A 20-30 minute walk or light workout helps maintain your streak."
+    candidates.push({
+      priority: 88,
+      tip: {
+        area: "workout",
+        title: "No workout logged today",
+        message: "A 20-30 minute walk or bodyweight session can keep your routine active."
+      }
     });
-  } else if (summary.workoutMinutes < 30) {
-    tips.push({
-      area: "workout",
-      title: "Short workout day",
-      message: "If energy allows, add 10-15 minutes of mobility or cardio."
+  } else if (summary.workoutMinutes < 20) {
+    candidates.push({
+      priority: 78,
+      tip: {
+        area: "workout",
+        title: "Very short workout day",
+        message: "If possible, add 10-15 minutes of mobility, cardio, or core work."
+      }
+    });
+  } else if (summary.workoutMinutes < 45) {
+    candidates.push({
+      priority: 62,
+      tip: {
+        area: "workout",
+        title: "Workout volume is moderate",
+        message: "This is a good maintenance day; continue with steady consistency."
+      }
     });
   } else {
-    tips.push({
-      area: "workout",
-      title: "Good activity level",
-      message: "Prioritize sleep and recovery to support consistency."
+    candidates.push({
+      priority: 60,
+      tip: {
+        area: "workout",
+        title: "Strong activity level today",
+        message: "Prioritize hydration and sleep to support tomorrow's recovery."
+      }
     });
   }
 
-  return {
+  if (summary.workoutsCount >= 2 || summary.workoutMinutes >= 90) {
+    candidates.push({
+      priority: 55,
+      tip: {
+        area: "recovery",
+        title: "Recovery should be prioritized",
+        message: "Include light stretching and a consistent bedtime to reduce next-day fatigue."
+      }
+    });
+  }
+
+  const selectedTips = candidates
+    .sort((a, b) => b.priority - a.priority)
+    .slice(0, 4)
+    .map((candidate) => candidate.tip);
+
+  const recommendations = {
     date: summary.date,
-    disclaimer:
-      "General wellness guidance only. This app does not provide medical advice, diagnosis, or treatment.",
-    tips
+    disclaimer: NON_MEDICAL_DISCLAIMER,
+    tips: selectedTips
   };
+
+  return enforceRecommendationSafety(recommendations);
 }
 
 function followUser(db, userId, targetUserId) {
