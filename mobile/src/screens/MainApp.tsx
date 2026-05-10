@@ -1,11 +1,14 @@
 import { useAppData } from "../hooks/useAppData";
+import { MealsScreen } from "./MealsScreen";
 import { AuthScreen } from "./AuthScreen";
+import { WorkoutsScreen } from "./WorkoutsScreen";
+import { createWorkout } from "../api";
+import { ProfileScreen } from "./ProfileScreen";
+import { SocialScreen } from "./SocialScreen";
 import { useState } from "react";
 import {
   SafeAreaView,
   StyleSheet,
-  View,
-  Text,
 } from "react-native";
 
 import { colors } from "../theme/colors";
@@ -17,45 +20,6 @@ import {
 
 import { HomeScreen } from "./HomeScreen";
 
-function MealsScreen() {
-  return (
-    <View style={styles.center}>
-      <Text style={styles.text}>
-        Meals Screen
-      </Text>
-    </View>
-  );
-}
-
-function WorkoutsScreen() {
-  return (
-    <View style={styles.center}>
-      <Text style={styles.text}>
-        Workouts Screen
-      </Text>
-    </View>
-  );
-}
-
-function SocialScreen() {
-  return (
-    <View style={styles.center}>
-      <Text style={styles.text}>
-        Social Screen
-      </Text>
-    </View>
-  );
-}
-
-function ProfileScreen() {
-  return (
-    <View style={styles.center}>
-      <Text style={styles.text}>
-        Profile Screen
-      </Text>
-    </View>
-  );
-}
 
 export function MainApp() {
   const data = useAppData();
@@ -82,26 +46,51 @@ export function MainApp() {
   function renderScreen() {
     switch (activeTab) {
       case "home":
-        return <HomeScreen />;
-
+  return (
+    <HomeScreen
+      summary={data.dashboard.summary}
+    />
+  );
       case "meals":
-        return <MealsScreen />;
+  return (
+    <MealsScreen
+      meals={data.meals.meals}
+      token={data.auth.token}
+      refreshMeals={data.meals.refreshMeals}
+    />
+  );
 
       case "workouts":
-        return <WorkoutsScreen />;
-
+  return (
+    <WorkoutsScreen
+      workouts={data.workouts.workouts}
+      token={data.auth.token}
+      refreshWorkouts={
+        data.workouts.refreshWorkouts
+      }
+      createWorkout={createWorkout}
+    />
+  );
       case "social":
         return <SocialScreen />;
 
       case "profile":
-        return <ProfileScreen />;
+  return (
+    <ProfileScreen
+      profile={data.dashboard.profile}
+      runLogout={data.auth.runLogout}
 
-      default:
-        return (
-  <HomeScreen
-    summary={data.dashboard.summary}
-  />
-);
+      profileName={data.profileSettings.profileName}
+      setProfileName={data.profileSettings.setProfileName}
+      saveProfile={data.profileSettings.saveProfile}
+
+      goalCalories={data.profileSettings.goalCalories}
+      setGoalCalories={data.profileSettings.setGoalCalories}
+      goalWorkouts={data.profileSettings.goalWorkouts}
+      setGoalWorkouts={data.profileSettings.setGoalWorkouts}
+    />
+  );
+  
     }
   }
 

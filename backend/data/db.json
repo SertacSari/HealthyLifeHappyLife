@@ -11,10 +11,10 @@
   "profiles": [
     {
       "userId": 1,
-      "name": "Updated MVP",
-      "goalCalories": 2200,
-      "goalWorkoutsPerWeek": 4,
-      "updatedAt": "2026-05-06T07:00:26.779Z"
+      "name": "Updated MVPp",
+      "goalCalories": 2201,
+      "goalWorkoutsPerWeek": 3,
+      "updatedAt": "2026-05-10T16:41:12.627Z"
     }
   ],
   "meals": [
@@ -27,6 +27,26 @@
       "carbs": 50,
       "fats": 20,
       "loggedAt": "2026-05-06T07:00:26.779Z"
+    },
+    {
+      "id": 2,
+      "userId": 1,
+      "name": "Burrito",
+      "calories": 500,
+      "protein": 200,
+      "carbs": 8,
+      "fats": 4,
+      "loggedAt": "2026-05-10T14:10:24.609Z"
+    },
+    {
+      "id": 3,
+      "userId": 1,
+      "name": "Egg",
+      "calories": 80,
+      "protein": 6,
+      "carbs": 1,
+      "fats": 5,
+      "loggedAt": "2026-05-10T15:20:32.999Z"
     }
   ],
   "workouts": [
@@ -37,13 +57,29 @@
       "durationMinutes": 60,
       "caloriesBurned": 350,
       "loggedAt": "2026-05-06T07:00:26.779Z"
+    },
+    {
+      "id": 2,
+      "userId": 1,
+      "name": "Plank",
+      "durationMinutes": 2,
+      "caloriesBurned": 40,
+      "loggedAt": "2026-05-10T14:55:23.395Z"
     }
   ],
   "counters": {
     "user": 2,
-    "meal": 2,
-    "workout": 2
+    "meal": 4,
+    "workout": 3
   },
-  "reminders": [],
+  "reminders": [
+    {
+      "userId": 1,
+      "enabled": false,
+      "reminderTime": "20:00",
+      "frequency": "daily",
+      "updatedAt": "2026-05-10T12:18:55.671Z"
+    }
+  ],
   "follows": []
 }

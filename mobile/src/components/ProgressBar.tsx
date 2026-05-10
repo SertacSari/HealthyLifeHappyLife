@@ -11,7 +11,15 @@ export function ProgressBar({ progress, color = colors.primary }: Props) {
 
   return (
     <View style={styles.track}>
-      <View style={[styles.fill, { width, backgroundColor: color }]} />
+      <View
+  style={[
+    styles.fill,
+    {
+      width: width as `${number}%`,
+      backgroundColor: color,
+    },
+  ]}
+/>
     </View>
   );
 }

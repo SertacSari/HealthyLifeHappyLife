@@ -298,9 +298,18 @@ export function useAppData() {
     },
 
     meals: {
-      meals,
-      mealName,
-      setMealName,
+  meals,
+  refreshMeals: async () => {
+    const refreshedMeals = await listMeals(
+      token,
+      activeDate
+    );
+
+    setMeals(refreshedMeals);
+  },
+
+  mealName,
+  setMealName,
       mealCalories,
       setMealCalories,
       mealProtein,
@@ -320,6 +329,15 @@ export function useAppData() {
       setWorkoutDuration,
       workoutCalories,
       setWorkoutCalories,
+      refreshWorkouts: async () => {
+  const refreshedWorkouts =
+    await listWorkouts(
+      token,
+      todayKey()
+    );
+
+  setWorkouts(refreshedWorkouts);
+},
       addWorkoutAndRefresh,
     },
 
