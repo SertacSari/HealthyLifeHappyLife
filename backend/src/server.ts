@@ -1,9 +1,10 @@
-const express = require("express");
-const cors = require("cors");
-const { port, jwtSecret, tokenTtlSeconds } = require("./config");
-const { verifyToken } = require("./auth");
-const db = require("./db");
-const svc = require("./services");
+import express, { Request, Response, NextFunction } from "express";
+import cors from "cors";
+import { port, jwtSecret, tokenTtlSeconds } from "./config";
+import { verifyToken } from "./auth";
+import * as svc from "./services";
+import prisma from "./prisma";
+import nodemailer from "nodemailer";
 
 const app = express();
 const authConfig = { jwtSecret, tokenTtlSeconds };
@@ -11,32 +12,75 @@ const authConfig = { jwtSecret, tokenTtlSeconds };
 app.use(cors());
 app.use(express.json());
 
+// Extend Express Request
+declare global {
+  namespace Express {
+    interface Request {
+      user?: any;
+    }
+  }
+}
+
+// ─── Email Setup ─────────────────────────────────────────
+let transporter: nodemailer.Transporter;
+
+async function setupEmail() {
+  // Generate test SMTP service account from ethereal.email
+  const testAccount = await nodemailer.createTestAccount();
+  transporter = nodemailer.createTransport({
+    host: "smtp.ethereal.email",
+    port: 587,
+    secure: false, // true for 465, false for other ports
+    auth: {
+      user: testAccount.user, // generated ethereal user
+      pass: testAccount.pass, // generated ethereal password
+    },
+  });
+  console.log("Ethereal Email ready for testing.");
+}
+setupEmail();
+
+async function sendTestEmail(to: string, subject: string, text: string) {
+  if (!transporter) return;
+  const info = await transporter.sendMail({
+    from: '"HealthyLife App" <no-reply@healthylife.com>',
+    to,
+    subject,
+    text,
+  });
+  console.log(`\n📧 Email sent to ${to}: ${subject}`);
+  console.log("Preview URL: %s", nodemailer.getTestMessageUrl(info));
+}
+
 // ─── Auth middleware ────────────────────────────────────
-async function authUser(req) {
+async function authUser(req: Request) {
   const header = req.headers.authorization || "";
   if (!header.startsWith("Bearer ")) return null;
   const token = header.replace("Bearer ", "").trim();
   const result = verifyToken(token, jwtSecret);
   if (!result.valid) return null;
-  const res = await db.query("SELECT id, email, created_at FROM users WHERE id = $1", [result.payload.userId]);
-  return res.rows[0] || null;
+  const user = await prisma.users.findUnique({ where: { id: result.payload.userId } });
+  return user || null;
 }
 
-function requireAuth(handler) {
-  return async (req, res, next) => {
+function requireAuth(handler: (req: Request, res: Response, next: NextFunction) => Promise<any>) {
+  return async (req: Request, res: Response, next: NextFunction) => {
     try {
       const user = await authUser(req);
-      if (!user) return res.status(401).json({ error: "Unauthorized" });
+      if (!user) {
+        res.status(401).json({ error: "Unauthorized" });
+        return;
+      }
       req.user = user;
       await handler(req, res, next);
-    } catch (err) {
+    } catch (err: any) {
       const status = err.status || 500;
       res.status(status).json({ error: err.message || "Internal server error" });
     }
   };
 }
 
-function sanitizeUser(data) {
+function sanitizeUser(data: any) {
   return { id: data.userId || data.id, email: data.email, createdAt: data.createdAt || data.created_at };
 }
 
@@ -49,8 +93,18 @@ app.get("/health", (_req, res) => {
 app.post("/auth/signup", async (req, res) => {
   try {
     const result = await svc.signup(req.body, authConfig);
-    res.status(201).json({ token: result.token, user: sanitizeUser(result) });
-  } catch (err) {
+    // Send verification email
+    await sendTestEmail(
+      result.email, 
+      "Verify Your Email", 
+      `Welcome to HealthyLifeHappyLife! Your verification code/token is: ${result.verificationToken}\n\nIn a real app, this would be a link to: http://localhost:8081/verify?token=${result.verificationToken}`
+    );
+    res.status(201).json({ 
+      token: result.token, 
+      user: sanitizeUser(result), 
+      message: "Please check your email to verify your account." 
+    });
+  } catch (err: any) {
     res.status(err.status || 500).json({ error: err.message });
   }
 });
@@ -59,7 +113,41 @@ app.post("/auth/login", async (req, res) => {
   try {
     const result = await svc.login(req.body, authConfig);
     res.json({ token: result.token, user: sanitizeUser(result) });
-  } catch (err) {
+  } catch (err: any) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
+app.post("/auth/verify", async (req, res) => {
+  try {
+    const result = await svc.verifyEmail(req.body.token);
+    res.json(result);
+  } catch (err: any) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
+app.post("/auth/forgot-password", async (req, res) => {
+  try {
+    const result = await svc.forgotPassword(req.body.email);
+    if (result.resetToken) {
+      await sendTestEmail(
+        req.body.email,
+        "Password Reset Request",
+        `You requested a password reset. Your reset token is: ${result.resetToken}`
+      );
+    }
+    res.json({ message: result.message });
+  } catch (err: any) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
+app.post("/auth/reset-password", async (req, res) => {
+  try {
+    const result = await svc.resetPassword(req.body.token, req.body.newPassword);
+    res.json(result);
+  } catch (err: any) {
     res.status(err.status || 500).json({ error: err.message });
   }
 });
@@ -69,7 +157,7 @@ app.post("/auth/logout", requireAuth(async (_req, res) => {
 }));
 
 app.get("/auth/me", requireAuth(async (req, res) => {
-  res.json({ user: { id: req.user.id, email: req.user.email, createdAt: req.user.created_at } });
+  res.json({ user: sanitizeUser(req.user) });
 }));
 
 // ─── Profile routes ─────────────────────────────────────
@@ -95,7 +183,7 @@ app.post("/meals", requireAuth(async (req, res) => {
 }));
 
 app.get("/meals", requireAuth(async (req, res) => {
-  const meals = await svc.listMeals(req.user.id, req.query.date);
+  const meals = await svc.listMeals(req.user.id, req.query.date as string);
   res.json({ meals });
 }));
 
@@ -106,22 +194,15 @@ app.post("/workouts", requireAuth(async (req, res) => {
 }));
 
 app.get("/workouts", requireAuth(async (req, res) => {
-  const workouts = await svc.listWorkouts(req.user.id, req.query.date);
+  const workouts = await svc.listWorkouts(req.user.id, req.query.date as string);
   res.json({ workouts });
 }));
 
 // ─── Dashboard ──────────────────────────────────────────
 app.get("/dashboard/summary", requireAuth(async (req, res) => {
-  const date = req.query.date || new Date().toISOString().slice(0, 10);
+  const date = (req.query.date as string) || new Date().toISOString().slice(0, 10);
   const summary = await svc.getDashboardSummary(req.user.id, date);
   res.json({ summary });
-}));
-
-// ─── Recommendations ────────────────────────────────────
-app.get("/recommendations/daily", requireAuth(async (req, res) => {
-  const date = req.query.date || new Date().toISOString().slice(0, 10);
-  const recommendations = await svc.getDailyRecommendations(req.user.id, date);
-  res.json({ recommendations });
 }));
 
 // ─── Reminders ──────────────────────────────────────────
@@ -135,30 +216,9 @@ app.put("/reminders/settings", requireAuth(async (req, res) => {
   res.json({ settings });
 }));
 
-// ─── Social routes ──────────────────────────────────────
-app.post("/social/follow", requireAuth(async (req, res) => {
-  const result = await svc.followUser(req.user.id, req.body.targetUserId);
-  res.json(result);
-}));
-
-app.post("/social/unfollow", requireAuth(async (req, res) => {
-  const result = await svc.unfollowUser(req.user.id, req.body.targetUserId);
-  res.json(result);
-}));
-
-app.get("/social/following", requireAuth(async (req, res) => {
-  const users = await svc.listFollowing(req.user.id);
-  res.json({ users });
-}));
-
-app.get("/social/followers", requireAuth(async (req, res) => {
-  const users = await svc.listFollowers(req.user.id);
-  res.json({ users });
-}));
-
 // ─── Food Catalog routes ────────────────────────────────
 app.get("/foods/search", requireAuth(async (req, res) => {
-  const foods = await svc.searchFoods(req.query.q, req.query.category);
+  const foods = await svc.searchFoods(req.query.q as string, req.query.category as string);
   res.json({ foods });
 }));
 
@@ -189,7 +249,7 @@ app.post("/water", requireAuth(async (req, res) => {
 }));
 
 app.get("/water", requireAuth(async (req, res) => {
-  const water = await svc.getWaterToday(req.user.id, req.query.date);
+  const water = await svc.getWaterToday(req.user.id, req.query.date as string);
   res.json({ water });
 }));
 
@@ -206,7 +266,7 @@ app.get("/measurements", requireAuth(async (req, res) => {
 
 // ─── Workout Template routes ────────────────────────────
 app.get("/workout-templates", requireAuth(async (req, res) => {
-  const templates = await svc.listWorkoutTemplates(req.query.category);
+  const templates = await svc.listWorkoutTemplates(req.query.category as string);
   res.json({ templates });
 }));
 
@@ -228,6 +288,5 @@ app.get("/dashboard/streak", requireAuth(async (req, res) => {
 
 // ─── Start ──────────────────────────────────────────────
 app.listen(port, () => {
-  console.log(`ENS492 backend running on http://localhost:${port}`);
+  console.log(`ENS492 backend running on http://localhost:${port} with TypeScript & Prisma`);
 });
-

@@ -1,19 +1,19 @@
-const crypto = require("node:crypto");
+import * as crypto from "node:crypto";
 
-function createSalt() {
+export function createSalt(): string {
   return crypto.randomBytes(16).toString("hex");
 }
 
-function hashPassword(password, salt) {
+export function hashPassword(password: string, salt: string): string {
   return crypto.scryptSync(password, salt, 64).toString("hex");
 }
 
-function verifyPassword(password, salt, hash) {
+export function verifyPassword(password: string, salt: string, hash: string): boolean {
   const attempt = hashPassword(password, salt);
   return crypto.timingSafeEqual(Buffer.from(attempt, "hex"), Buffer.from(hash, "hex"));
 }
 
-function base64UrlEncode(value) {
+function base64UrlEncode(value: string): string {
   return Buffer.from(value)
     .toString("base64")
     .replace(/\+/g, "-")
@@ -21,18 +21,18 @@ function base64UrlEncode(value) {
     .replace(/=+$/g, "");
 }
 
-function base64UrlDecode(value) {
+function base64UrlDecode(value: string): string {
   const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
   const padLength = (4 - (normalized.length % 4)) % 4;
   const padded = normalized + "=".repeat(padLength);
   return Buffer.from(padded, "base64").toString("utf8");
 }
 
-function sign(text, secret) {
+function sign(text: string, secret: string): string {
   return crypto.createHmac("sha256", secret).update(text).digest("base64url");
 }
 
-function createToken(payload, secret, ttlSeconds) {
+export function createToken(payload: any, secret: string, ttlSeconds: number): string {
   const header = { alg: "HS256", typ: "JWT" };
   const issuedAt = Math.floor(Date.now() / 1000);
   const fullPayload = {
@@ -47,7 +47,7 @@ function createToken(payload, secret, ttlSeconds) {
   return `${content}.${signature}`;
 }
 
-function verifyToken(token, secret) {
+export function verifyToken(token: string, secret: string): { valid: boolean; payload?: any; reason?: string } {
   if (!token || token.split(".").length !== 3) {
     return { valid: false, reason: "Malformed token" };
   }
@@ -74,11 +74,3 @@ function verifyToken(token, secret) {
     return { valid: false, reason: "Invalid payload" };
   }
 }
-
-module.exports = {
-  createSalt,
-  hashPassword,
-  verifyPassword,
-  createToken,
-  verifyToken
-};

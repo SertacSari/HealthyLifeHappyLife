@@ -1,20 +1,20 @@
-function isEmail(value) {
+export function isEmail(value: any): boolean {
   return typeof value === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
-function isNonEmptyString(value, maxLength = 200) {
+export function isNonEmptyString(value: any, maxLength = 200): boolean {
   return typeof value === "string" && value.trim().length > 0 && value.length <= maxLength;
 }
 
-function isPositiveNumber(value) {
+export function isPositiveNumber(value: any): boolean {
   return typeof value === "number" && Number.isFinite(value) && value > 0;
 }
 
-function isNonNegativeNumber(value) {
+export function isNonNegativeNumber(value: any): boolean {
   return typeof value === "number" && Number.isFinite(value) && value >= 0;
 }
 
-function normalizeDateOrNow(value) {
+export function normalizeDateOrNow(value: any): string | null {
   if (!value) {
     return new Date().toISOString();
   }
@@ -25,16 +25,6 @@ function normalizeDateOrNow(value) {
   return date.toISOString();
 }
 
-function toDateKey(isoString) {
+export function toDateKey(isoString: string): string {
   return isoString.slice(0, 10);
 }
-
-module.exports = {
-  isEmail,
-  isNonEmptyString,
-  isPositiveNumber,
-  isNonNegativeNumber,
-  normalizeDateOrNow,
-  toDateKey
-};
-
