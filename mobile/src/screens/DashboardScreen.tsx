@@ -1,9 +1,28 @@
-import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from "react-native";
+import React, { useEffect, useState, useRef } from "react";
+import { View, Text, StyleSheet, ScrollView, RefreshControl, Dimensions, Animated } from "react-native";
+import { LineChart } from "react-native-chart-kit";
+import { LinearGradient } from "expo-linear-gradient";
 import { Colors, Spacing, FontSize, BorderRadius } from "../theme";
 import { getSummary, getWeeklySummary, getStreak as fetchStreak, getWaterToday } from "../api";
 
+const screenWidth = Dimensions.get("window").width;
+
 type Props = { token: string };
+
+function Skeleton() {
+  const anim = useRef(new Animated.Value(0.3)).current;
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(anim, { toValue: 1, duration: 800, useNativeDriver: true }),
+        Animated.timing(anim, { toValue: 0.3, duration: 800, useNativeDriver: true }),
+      ])
+    ).start();
+  }, []);
+  return (
+    <Animated.View style={{ opacity: anim, backgroundColor: Colors.surface, borderRadius: BorderRadius.md, height: 120, marginBottom: Spacing.sm }} />
+  );
+}
 
 function ProgressRing({ value, max, size, color, label }: { value: number; max: number; size: number; color: string; label: string }) {
   const pct = max > 0 ? Math.min(value / max, 1) : 0;
@@ -15,19 +34,6 @@ function ProgressRing({ value, max, size, color, label }: { value: number; max: 
         <Text style={{ color: Colors.text, fontSize: FontSize.lg, fontWeight: "800" }}>{pctText}%</Text>
       </View>
       <Text style={{ color: Colors.textSecondary, fontSize: FontSize.xs, marginTop: 4 }}>{label}</Text>
-    </View>
-  );
-}
-
-function MiniBar({ value, max, color, label, dayName }: { value: number; max: number; color: string; label?: string; dayName: string }) {
-  const h = max > 0 ? Math.min(value / max, 1) * 60 : 0;
-  return (
-    <View style={{ alignItems: "center", flex: 1 }}>
-      <Text style={{ color: Colors.textMuted, fontSize: 9 }}>{value > 0 ? value : ""}</Text>
-      <View style={{ width: 16, height: 60, backgroundColor: Colors.surfaceLight, borderRadius: 4, justifyContent: "flex-end", overflow: "hidden" }}>
-        <View style={{ width: 16, height: h, backgroundColor: color, borderRadius: 4 }} />
-      </View>
-      <Text style={{ color: Colors.textSecondary, fontSize: 10, marginTop: 2 }}>{dayName}</Text>
     </View>
   );
 }
@@ -54,36 +60,51 @@ export default function DashboardScreen({ token }: Props) {
   const [streak, setStreak] = useState(0);
   const [water, setWater] = useState<any>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
 
   async function load() {
-    setRefreshing(true);
     try {
       const [s, w, st, wt] = await Promise.all([
         getSummary(token), getWeeklySummary(token), fetchStreak(token), getWaterToday(token)
       ]);
       setSummary(s); setWeekly(w); setStreak(st); setWater(wt);
-    } catch {} finally { setRefreshing(false); }
+    } catch {} finally { 
+      setRefreshing(false);
+      setInitialLoading(false);
+    }
   }
   useEffect(() => { load(); }, []);
 
   const goalCal = summary?.goals?.goalCalories || 2000;
 
+  const chartData = {
+    labels: weekly.length ? weekly.map(d => d.dayName) : ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"],
+    datasets: [{ data: weekly.length ? weekly.map(d => d.caloriesIn) : [0,0,0,0,0,0,0] }]
+  };
+
   return (
-    <ScrollView style={s.container} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={load} tintColor={Colors.primary} />}>
-      {/* Header with streak */}
+    <ScrollView style={s.container} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={Colors.primary} />}>
       <View style={s.header}>
         <View>
           <Text style={s.title}>Dashboard</Text>
           <Text style={s.subtitle}>{new Date().toLocaleDateString("tr-TR", { weekday: "long", day: "numeric", month: "long" })}</Text>
         </View>
-        <View style={s.streakBadge}>
-          <Text style={s.streakIcon}>🔥</Text>
-          <Text style={s.streakNum}>{streak}</Text>
-          <Text style={s.streakLabel}>gün</Text>
-        </View>
+        {!initialLoading && (
+          <View style={s.streakBadge}>
+            <Text style={s.streakIcon}>🔥</Text>
+            <Text style={s.streakNum}>{streak}</Text>
+            <Text style={s.streakLabel}>gün</Text>
+          </View>
+        )}
       </View>
 
-      {summary && (
+      {initialLoading ? (
+        <>
+          <Skeleton />
+          <Skeleton />
+          <Skeleton />
+        </>
+      ) : summary && (
         <>
           {/* Progress rings */}
           <View style={s.ringRow}>
@@ -134,17 +155,27 @@ export default function DashboardScreen({ token }: Props) {
             </View>
           )}
 
-          {/* Weekly chart */}
-          {weekly.length > 0 && (
-            <View style={s.weeklyCard}>
-              <Text style={s.sectionTitle}>Haftalık Kalori</Text>
-              <View style={s.chartRow}>
-                {weekly.map((d, i) => (
-                  <MiniBar key={i} value={d.caloriesIn} max={goalCal * 1.2} color={Colors.accent} dayName={d.dayName} />
-                ))}
-              </View>
-            </View>
-          )}
+          {/* Line Chart */}
+          <View style={s.weeklyCard}>
+            <Text style={s.sectionTitle}>Haftalık Kalori Trendi</Text>
+            <LineChart
+              data={chartData}
+              width={screenWidth - Spacing.lg * 2 - Spacing.md * 2} // width of card
+              height={220}
+              chartConfig={{
+                backgroundColor: Colors.surface,
+                backgroundGradientFrom: Colors.surface,
+                backgroundGradientTo: Colors.surface,
+                decimalPlaces: 0,
+                color: (opacity = 1) => `rgba(16, 185, 129, ${opacity})`, // primary color
+                labelColor: (opacity = 1) => `rgba(156, 163, 175, ${opacity})`,
+                style: { borderRadius: 16 },
+                propsForDots: { r: "5", strokeWidth: "2", stroke: Colors.primary }
+              }}
+              bezier
+              style={{ marginVertical: 8, borderRadius: 16 }}
+            />
+          </View>
         </>
       )}
       <View style={{ height: 30 }} />
@@ -175,5 +206,4 @@ const s = StyleSheet.create({
   waterTrack: { height: 8, backgroundColor: Colors.surfaceLight, borderRadius: 4, overflow: "hidden", marginTop: 4 },
   waterFill: { height: "100%", backgroundColor: "#60A5FA", borderRadius: 4 },
   weeklyCard: { backgroundColor: Colors.surface, borderRadius: BorderRadius.md, padding: Spacing.lg, marginBottom: Spacing.sm },
-  chartRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end" },
 });

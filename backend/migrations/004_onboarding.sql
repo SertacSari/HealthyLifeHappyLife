@@ -1,0 +1,11 @@
+-- Migration 004: Onboarding fields
+
+BEGIN;
+
+ALTER TABLE profiles
+ADD COLUMN IF NOT EXISTS onboarding_completed BOOLEAN DEFAULT false,
+ADD COLUMN IF NOT EXISTS birth_year INTEGER,
+ADD COLUMN IF NOT EXISTS gender VARCHAR(20),
+ADD COLUMN IF NOT EXISTS activity_level VARCHAR(50);
+
+COMMIT;

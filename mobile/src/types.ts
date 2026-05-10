@@ -14,6 +14,12 @@ export type Profile = {
   name: string;
   goalCalories: number;
   goalWorkoutsPerWeek: number;
+  waterGoalMl: number;
+  heightCm: number;
+  onboardingCompleted: boolean;
+  birthYear: number;
+  gender: string;
+  activityLevel: string;
   updatedAt: string;
 };
 

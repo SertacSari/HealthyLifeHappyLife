@@ -1,9 +1,10 @@
-import React, { useState } from "react";
-import { StatusBar } from "react-native";
+import React, { useState, useEffect } from "react";
+import { StatusBar, ActivityIndicator, View } from "react-native";
 import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Colors } from "./src/theme";
-import { logout as apiLogout } from "./src/api";
+import { logout as apiLogout, getProfile } from "./src/api";
+import { registerForPushNotificationsAsync } from "./src/notifications";
 
 import AuthScreen from "./src/screens/AuthScreen";
 import DashboardScreen from "./src/screens/DashboardScreen";
@@ -12,6 +13,7 @@ import WorkoutsScreen from "./src/screens/WorkoutsScreen";
 import WellnessScreen from "./src/screens/WellnessScreen";
 import CoachScreen from "./src/screens/CoachScreen";
 import ProfileScreen from "./src/screens/ProfileScreen";
+import OnboardingScreen from "./src/screens/OnboardingScreen";
 
 const Tab = createBottomTabNavigator();
 
@@ -31,10 +33,24 @@ const AppTheme = {
 
 export default function App() {
   const [token, setToken] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [needsOnboarding, setNeedsOnboarding] = useState(false);
+
+  useEffect(() => {
+    if (token) {
+      setLoading(true);
+      getProfile(token).then(p => {
+        setNeedsOnboarding(!p.onboardingCompleted);
+        setLoading(false);
+        registerForPushNotificationsAsync();
+      }).catch(() => setLoading(false));
+    }
+  }, [token]);
 
   function handleLogout() {
     if (token) apiLogout(token).catch(() => {});
     setToken("");
+    setNeedsOnboarding(false);
   }
 
   if (!token) {
@@ -42,6 +58,23 @@ export default function App() {
       <>
         <StatusBar barStyle="light-content" backgroundColor={Colors.background} />
         <AuthScreen onAuth={setToken} />
+      </>
+    );
+  }
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, backgroundColor: Colors.background, justifyContent: "center", alignItems: "center" }}>
+        <ActivityIndicator size="large" color={Colors.primary} />
+      </View>
+    );
+  }
+
+  if (needsOnboarding) {
+    return (
+      <>
+        <StatusBar barStyle="light-content" backgroundColor={Colors.background} />
+        <OnboardingScreen token={token} onComplete={() => setNeedsOnboarding(false)} />
       </>
     );
   }

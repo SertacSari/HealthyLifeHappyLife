@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useCallback } from "react";
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, RefreshControl, Alert, FlatList, Modal } from "react-native";
+import React, { useEffect, useState, useRef } from "react";
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, RefreshControl, Alert, FlatList, Modal, Animated } from "react-native";
 import { Colors, Spacing, FontSize, BorderRadius } from "../theme";
 import { createMeal, listMeals, searchFoods, getFoodCategories, addMealFromCatalog, toggleFavorite, listFavorites } from "../api";
 import type { Meal } from "../types";
@@ -9,9 +9,23 @@ type FoodItem = { id: number; name: string; category: string; calories: number; 
 
 function todayKey() { return new Date().toISOString().slice(0, 10); }
 
+function Skeleton() {
+  const anim = useRef(new Animated.Value(0.3)).current;
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(anim, { toValue: 1, duration: 800, useNativeDriver: true }),
+        Animated.timing(anim, { toValue: 0.3, duration: 800, useNativeDriver: true }),
+      ])
+    ).start();
+  }, []);
+  return <Animated.View style={{ opacity: anim, backgroundColor: Colors.surface, borderRadius: BorderRadius.md, height: 70, marginBottom: Spacing.sm }} />;
+}
+
 export default function MealsScreen({ token }: Props) {
   const [meals, setMeals] = useState<Meal[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [tab, setTab] = useState<"catalog" | "manual" | "favorites">("catalog");
   // Catalog
   const [query, setQuery] = useState("");
@@ -30,7 +44,7 @@ export default function MealsScreen({ token }: Props) {
   const [servings, setServings] = useState("1");
 
   async function loadMeals() {
-    try { setRefreshing(true); setMeals(await listMeals(token, todayKey())); } catch {} finally { setRefreshing(false); }
+    try { setMeals(await listMeals(token, todayKey())); } catch {}
   }
 
   async function loadCatalog() {
@@ -40,7 +54,12 @@ export default function MealsScreen({ token }: Props) {
     } catch {}
   }
 
-  useEffect(() => { loadMeals(); loadCatalog(); }, []);
+  async function initialLoad() {
+    await Promise.all([loadMeals(), loadCatalog()]);
+    setInitialLoading(false);
+  }
+
+  useEffect(() => { initialLoad(); }, []);
   useEffect(() => { const t = setTimeout(() => loadCatalog(), 300); return () => clearTimeout(t); }, [query, selCategory]);
 
   async function addManual() {
@@ -94,7 +113,14 @@ export default function MealsScreen({ token }: Props) {
       </View>
 
       <ScrollView style={{ flex: 1 }} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadMeals} tintColor={Colors.primary} />}>
-        {tab === "catalog" && (
+        {initialLoading ? (
+          <>
+            <Skeleton />
+            <Skeleton />
+            <Skeleton />
+            <Skeleton />
+          </>
+        ) : tab === "catalog" && (
           <>
             <TextInput style={s.searchInput} placeholder="Yemek ara... (mercimek, döner, pilav)" placeholderTextColor={Colors.textMuted} value={query} onChangeText={setQuery} />
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: Spacing.sm, maxHeight: 36 }}>

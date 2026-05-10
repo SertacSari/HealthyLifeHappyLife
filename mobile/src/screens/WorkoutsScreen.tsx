@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from "react";
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, RefreshControl, Alert, Modal } from "react-native";
+import React, { useEffect, useState, useRef } from "react";
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, RefreshControl, Alert, Modal, Animated } from "react-native";
 import { Colors, Spacing, FontSize, BorderRadius } from "../theme";
 import { createWorkout, listWorkouts, getWorkoutTemplates, logWorkoutFromTemplate } from "../api";
 import type { Workout } from "../types";
@@ -11,10 +11,24 @@ function todayKey() { return new Date().toISOString().slice(0, 10); }
 
 const catIcons: Record<string, string> = { Strength: "🏋️", Cardio: "🏃", Flexibility: "🧘", Core: "💪" };
 
+function Skeleton() {
+  const anim = useRef(new Animated.Value(0.3)).current;
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(anim, { toValue: 1, duration: 800, useNativeDriver: true }),
+        Animated.timing(anim, { toValue: 0.3, duration: 800, useNativeDriver: true }),
+      ])
+    ).start();
+  }, []);
+  return <Animated.View style={{ opacity: anim, backgroundColor: Colors.surface, borderRadius: BorderRadius.md, height: 80, marginBottom: Spacing.sm }} />;
+}
+
 export default function WorkoutsScreen({ token }: Props) {
   const [workouts, setWorkouts] = useState<Workout[]>([]);
   const [templates, setTemplates] = useState<Template[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [tab, setTab] = useState<"templates" | "manual">("templates");
   const [detail, setDetail] = useState<Template | null>(null);
   // manual
@@ -23,11 +37,13 @@ export default function WorkoutsScreen({ token }: Props) {
   const [cals, setCals] = useState("");
 
   async function load() {
-    setRefreshing(true);
     try {
       const [w, t] = await Promise.all([listWorkouts(token, todayKey()), getWorkoutTemplates(token)]);
       setWorkouts(w); setTemplates(t);
-    } catch {} finally { setRefreshing(false); }
+    } catch {} finally { 
+      setRefreshing(false); 
+      setInitialLoading(false);
+    }
   }
   useEffect(() => { load(); }, []);
 
@@ -68,8 +84,15 @@ export default function WorkoutsScreen({ token }: Props) {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={{ flex: 1 }} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={load} tintColor={Colors.primary} />}>
-        {tab === "templates" && templates.map(t => (
+      <ScrollView style={{ flex: 1 }} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={Colors.primary} />}>
+        {initialLoading ? (
+          <>
+            <Skeleton />
+            <Skeleton />
+            <Skeleton />
+            <Skeleton />
+          </>
+        ) : tab === "templates" && templates.map(t => (
           <TouchableOpacity key={t.id} style={s.templateCard} onPress={() => setDetail(t)}>
             <Text style={s.templateIcon}>{catIcons[t.category] || "🏋️"}</Text>
             <View style={{ flex: 1 }}>

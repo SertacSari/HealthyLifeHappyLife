@@ -83,6 +83,11 @@ app.put("/profile", requireAuth(async (req, res) => {
   res.json({ profile });
 }));
 
+app.post("/profile/onboard", requireAuth(async (req, res) => {
+  const profile = await svc.completeOnboarding(req.user.id, req.body);
+  res.json({ profile });
+}));
+
 // ─── Meal routes ────────────────────────────────────────
 app.post("/meals", requireAuth(async (req, res) => {
   const meal = await svc.addMeal(req.user.id, req.body);

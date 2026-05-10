@@ -101,6 +101,14 @@ export async function updateProfile(
   return data.profile;
 }
 
+export async function completeOnboarding(
+  token: string,
+  payload: { birthYear: number; gender: string; activityLevel: string; goal: string; weightKg: number; heightCm: number }
+): Promise<Profile> {
+  const data = await request<{ profile: Profile }>("/profile/onboard", "POST", token, payload);
+  return data.profile;
+}
+
 export async function createMeal(token: string, payload: Omit<Meal, "id" | "userId" | "loggedAt">): Promise<Meal> {
   const data = await request<{ meal: Meal }>("/meals", "POST", token, payload);
   return data.meal;

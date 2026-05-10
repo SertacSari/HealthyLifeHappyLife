@@ -67,7 +67,13 @@ async function getProfile(userId) {
   const res = await db.query("SELECT * FROM profiles WHERE user_id = $1", [userId]);
   if (res.rows.length === 0) throw createAppError("Profile not found", 404);
   const p = res.rows[0];
-  return { userId: p.user_id, name: p.name, goalCalories: p.goal_calories, goalWorkoutsPerWeek: p.goal_workouts_per_week, updatedAt: p.updated_at };
+  return { 
+    userId: p.user_id, name: p.name, goalCalories: p.goal_calories, 
+    goalWorkoutsPerWeek: p.goal_workouts_per_week, updatedAt: p.updated_at,
+    waterGoalMl: p.water_goal_ml, heightCm: Number(p.height_cm),
+    onboardingCompleted: p.onboarding_completed,
+    birthYear: p.birth_year, gender: p.gender, activityLevel: p.activity_level
+  };
 }
 
 async function updateProfile(userId, input) {
@@ -85,7 +91,48 @@ async function updateProfile(userId, input) {
     [name.trim(), goalCalories, goalWorkoutsPerWeek, userId]
   );
   const p = res.rows[0];
-  return { userId: p.user_id, name: p.name, goalCalories: p.goal_calories, goalWorkoutsPerWeek: p.goal_workouts_per_week, updatedAt: p.updated_at };
+  return { 
+    userId: p.user_id, name: p.name, goalCalories: p.goal_calories, 
+    goalWorkoutsPerWeek: p.goal_workouts_per_week, updatedAt: p.updated_at,
+    onboardingCompleted: p.onboarding_completed 
+  };
+}
+
+async function completeOnboarding(userId, input) {
+  const { birthYear, gender, activityLevel, goal, weightKg, heightCm } = input;
+  if (!birthYear || !gender || !activityLevel || !goal || !weightKg || !heightCm) {
+    throw createAppError("Missing required onboarding fields");
+  }
+
+  const age = new Date().getFullYear() - birthYear;
+  let bmr = (10 * weightKg) + (6.25 * heightCm) - (5 * age);
+  if (gender === "male") bmr += 5;
+  else bmr -= 161;
+
+  let multiplier = 1.2;
+  if (activityLevel === "light") multiplier = 1.375;
+  if (activityLevel === "moderate") multiplier = 1.55;
+  if (activityLevel === "active") multiplier = 1.725;
+  
+  let tdee = Math.round(bmr * multiplier);
+  let goalCal = tdee;
+  if (goal === "lose") goalCal = tdee - 500;
+  if (goal === "gain") goalCal = tdee + 500;
+  if (goalCal < 1200) goalCal = 1200;
+
+  const waterGoal = weightKg * 35; // 35ml per kg
+
+  await db.query("INSERT INTO body_measurements (user_id, weight_kg, height_cm) VALUES ($1,$2,$3)", [userId, weightKg, heightCm]);
+
+  const res = await db.query(
+    `UPDATE profiles SET 
+      onboarding_completed = true, birth_year = $1, gender = $2, activity_level = $3, 
+      height_cm = $4, goal_calories = $5, water_goal_ml = $6, updated_at = NOW() 
+     WHERE user_id = $7 RETURNING *`,
+    [birthYear, gender, activityLevel, heightCm, goalCal, waterGoal, userId]
+  );
+
+  return getProfile(userId);
 }
 
 // ─── Meals ──────────────────────────────────────────────
@@ -460,7 +507,7 @@ async function getStreak(userId) {
 }
 
 module.exports = {
-  signup, login, getProfile, updateProfile,
+  signup, login, getProfile, updateProfile, completeOnboarding,
   addMeal, listMeals, addWorkout, listWorkouts,
   getDashboardSummary, getReminderSettings, updateReminderSettings,
   getDailyRecommendations, followUser, unfollowUser, listFollowing, listFollowers,

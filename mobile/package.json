@@ -14,11 +14,16 @@
     "@react-navigation/bottom-tabs": "^7.15.13",
     "@react-navigation/native": "^7.2.4",
     "expo": "~53.0.0",
+    "expo-linear-gradient": "~14.1.5",
+    "expo-notifications": "~0.31.5",
+    "lottie-react-native": "7.2.2",
     "react": "19.0.0",
     "react-dom": "19.0.0",
     "react-native": "0.79.6",
+    "react-native-chart-kit": "^6.12.2",
     "react-native-safe-area-context": "5.4.0",
     "react-native-screens": "~4.11.1",
+    "react-native-svg": "15.11.2",
     "react-native-web": "^0.20.0"
   },
   "devDependencies": {
