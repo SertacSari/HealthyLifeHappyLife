@@ -3,7 +3,8 @@ import { Platform } from 'react-native';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
     shouldPlaySound: true,
     shouldSetBadge: false,
   }),
@@ -39,10 +40,8 @@ export async function registerForPushNotificationsAsync() {
 }
 
 export async function scheduleWaterReminder() {
-  // Cancel all existing to avoid duplicates
   await Notifications.cancelAllScheduledNotificationsAsync();
 
-  // Schedule a local notification that triggers every 2 hours
   await Notifications.scheduleNotificationAsync({
     content: {
       title: "Su İçme Vakti! 💧",
@@ -50,8 +49,9 @@ export async function scheduleWaterReminder() {
       sound: true,
     },
     trigger: {
-      seconds: 60 * 60 * 2, // Every 2 hours
+      type: Notifications.SchedulableTriggerInputTypes ? Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL : 'timeInterval',
+      seconds: 60 * 60 * 2,
       repeats: true,
-    },
+    } as any,
   });
 }
