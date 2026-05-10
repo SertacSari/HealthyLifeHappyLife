@@ -1,7 +1,7 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useCallback, useEffect, useState, useRef } from "react";
 import { View, Text, StyleSheet, ScrollView, RefreshControl, Dimensions, Animated } from "react-native";
+import { useFocusEffect } from "@react-navigation/native";
 import { LineChart } from "react-native-chart-kit";
-import { LinearGradient } from "expo-linear-gradient";
 import { Colors, Spacing, FontSize, BorderRadius } from "../theme";
 import { getSummary, getWeeklySummary, getStreak as fetchStreak, getWaterToday } from "../api";
 
@@ -74,6 +74,11 @@ export default function DashboardScreen({ token }: Props) {
     }
   }
   useEffect(() => { load(); }, []);
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [token])
+  );
 
   const goalCal = summary?.goals?.goalCalories || 2000;
 

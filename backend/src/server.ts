@@ -22,21 +22,26 @@ declare global {
 }
 
 // ─── Email Setup ─────────────────────────────────────────
-let transporter: nodemailer.Transporter;
+let transporter: nodemailer.Transporter | undefined;
 
 async function setupEmail() {
-  // Generate test SMTP service account from ethereal.email
-  const testAccount = await nodemailer.createTestAccount();
-  transporter = nodemailer.createTransport({
-    host: "smtp.ethereal.email",
-    port: 587,
-    secure: false, // true for 465, false for other ports
-    auth: {
-      user: testAccount.user, // generated ethereal user
-      pass: testAccount.pass, // generated ethereal password
-    },
-  });
-  console.log("Ethereal Email ready for testing.");
+  try {
+    // Generate test SMTP service account from ethereal.email
+    const testAccount = await nodemailer.createTestAccount();
+    transporter = nodemailer.createTransport({
+      host: "smtp.ethereal.email",
+      port: 587,
+      secure: false, // true for 465, false for other ports
+      auth: {
+        user: testAccount.user, // generated ethereal user
+        pass: testAccount.pass, // generated ethereal password
+      },
+    });
+    console.log("Ethereal Email ready for testing.");
+  } catch (err: any) {
+    transporter = undefined;
+    console.warn(`Email preview setup unavailable: ${err.message || "unknown error"}`);
+  }
 }
 setupEmail();
 
@@ -102,7 +107,7 @@ app.post("/auth/signup", async (req, res) => {
     res.status(201).json({ 
       token: result.token, 
       user: sanitizeUser(result), 
-      message: "Please check your email to verify your account." 
+      message: "Account created successfully." 
     });
   } catch (err: any) {
     res.status(err.status || 500).json({ error: err.message });
@@ -205,6 +210,12 @@ app.get("/dashboard/summary", requireAuth(async (req, res) => {
   res.json({ summary });
 }));
 
+app.get("/recommendations/daily", requireAuth(async (req, res) => {
+  const date = (req.query.date as string) || new Date().toISOString().slice(0, 10);
+  const recommendations = await svc.getDailyRecommendations(req.user.id, date);
+  res.json({ recommendations });
+}));
+
 // ─── Reminders ──────────────────────────────────────────
 app.get("/reminders/settings", requireAuth(async (req, res) => {
   const settings = await svc.getReminderSettings(req.user.id);
@@ -287,6 +298,10 @@ app.get("/dashboard/streak", requireAuth(async (req, res) => {
 }));
 
 // ─── Start ──────────────────────────────────────────────
-app.listen(port, () => {
+const server = app.listen(port, () => {
   console.log(`ENS492 backend running on http://localhost:${port} with TypeScript & Prisma`);
+});
+
+server.on("error", (err) => {
+  console.error("Backend server error:", err);
 });

@@ -16,6 +16,32 @@ import ProfileScreen from "./src/screens/ProfileScreen";
 import OnboardingScreen from "./src/screens/OnboardingScreen";
 
 const Tab = createBottomTabNavigator();
+const TOKEN_STORAGE_KEY = "healthylife.authToken";
+
+function readStoredToken() {
+  try {
+    if (typeof globalThis.localStorage === "undefined") return "";
+    return globalThis.localStorage.getItem(TOKEN_STORAGE_KEY) || "";
+  } catch {
+    return "";
+  }
+}
+
+function storeToken(token: string) {
+  try {
+    if (typeof globalThis.localStorage !== "undefined") {
+      globalThis.localStorage.setItem(TOKEN_STORAGE_KEY, token);
+    }
+  } catch {}
+}
+
+function clearStoredToken() {
+  try {
+    if (typeof globalThis.localStorage !== "undefined") {
+      globalThis.localStorage.removeItem(TOKEN_STORAGE_KEY);
+    }
+  } catch {}
+}
 
 const AppTheme = {
   ...DefaultTheme,
@@ -32,7 +58,7 @@ const AppTheme = {
 };
 
 export default function App() {
-  const [token, setToken] = useState("");
+  const [token, setToken] = useState(readStoredToken);
   const [loading, setLoading] = useState(false);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
 
@@ -43,12 +69,22 @@ export default function App() {
         setNeedsOnboarding(!p.onboardingCompleted);
         setLoading(false);
         registerForPushNotificationsAsync();
-      }).catch(() => setLoading(false));
+      }).catch(() => {
+        clearStoredToken();
+        setToken("");
+        setLoading(false);
+      });
     }
   }, [token]);
 
+  function handleAuth(nextToken: string) {
+    storeToken(nextToken);
+    setToken(nextToken);
+  }
+
   function handleLogout() {
     if (token) apiLogout(token).catch(() => {});
+    clearStoredToken();
     setToken("");
     setNeedsOnboarding(false);
   }
@@ -57,7 +93,7 @@ export default function App() {
     return (
       <>
         <StatusBar barStyle="light-content" backgroundColor={Colors.background} />
-        <AuthScreen onAuth={setToken} />
+        <AuthScreen onAuth={handleAuth} />
       </>
     );
   }

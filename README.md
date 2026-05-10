@@ -69,7 +69,10 @@ brew services start postgresql@16
 export PATH="/opt/homebrew/opt/postgresql@16/bin:$PATH"
 createdb healthylife
 cd backend
-psql -d healthylife -f migrations/001_initial_schema.sql
+psql -U postgres -d healthylife -f migrations/001_initial_schema.sql
+psql -U postgres -d healthylife -f migrations/002_features.sql
+psql -U postgres -d healthylife -f migrations/003_seed_data.sql
+psql -U postgres -d healthylife -f migrations/004_onboarding.sql
 ```
 
 ### 2. Backend
@@ -78,6 +81,7 @@ psql -d healthylife -f migrations/001_initial_schema.sql
 cd backend
 cp .env.example .env
 npm install
+npx prisma generate
 npm start
 ```
 

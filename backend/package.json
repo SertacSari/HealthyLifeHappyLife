@@ -7,7 +7,7 @@
   "scripts": {
     "start": "ts-node src/server.ts",
     "dev": "ts-node src/server.ts",
-    "test": "node --test",
+    "test": "node --test -r ts-node/register",
     "smoke": "node scripts/month1-smoke.js"
   },
   "engines": {

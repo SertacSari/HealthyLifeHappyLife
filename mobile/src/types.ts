@@ -75,7 +75,7 @@ export type ReminderSettings = {
 };
 
 export type RecommendationTip = {
-  area: "nutrition" | "workout";
+  area: "nutrition" | "workout" | "recovery" | "consistency";
   title: string;
   message: string;
 };

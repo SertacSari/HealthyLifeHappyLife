@@ -31,7 +31,7 @@ export async function signup(input: any, authConfig: any) {
         email: email.toLowerCase(),
         password_hash: hash,
         password_salt: salt,
-        is_verified: false,
+        is_verified: true,
         verification_token: verificationToken
       }
     });
@@ -281,13 +281,142 @@ export async function getDashboardSummary(userId: number, date?: string) {
   };
 }
 
+type RecommendationTip = {
+  area: "nutrition" | "workout" | "recovery" | "consistency";
+  title: string;
+  message: string;
+};
+
+const recommendationDisclaimer =
+  "General wellness guidance only. This app does not provide medical advice, diagnosis, or treatment.";
+
+function sanitizeTips(tips: RecommendationTip[]) {
+  const blockedTerms = ["diagnose", "diagnosis", "medication", "prescribe", "cure", "disease"];
+  return tips.filter((tip) => {
+    const rendered = `${tip.title} ${tip.message}`.toLowerCase();
+    return !blockedTerms.some((term) => rendered.includes(term));
+  });
+}
+
+export function buildDailyRecommendations(summary: any) {
+  const tips: RecommendationTip[] = [];
+  const goalCalories = summary.goals?.goalCalories || 2000;
+  const totalCaloriesIn = summary.totalCaloriesIn || 0;
+  const workoutMinutes = summary.workoutMinutes || 0;
+  const protein = summary.macros?.protein || 0;
+
+  if (summary.mealsCount === 0 && summary.workoutsCount === 0) {
+    tips.push({
+      area: "consistency",
+      title: "No activity logs yet today",
+      message: "Start with one meal log or a short walk to build daily momentum."
+    });
+  }
+
+  if (totalCaloriesIn < goalCalories * 0.35) {
+    tips.push({
+      area: "nutrition",
+      title: "Calorie intake is far below goal",
+      message: "Add a balanced meal with protein, complex carbs, and healthy fats."
+    });
+  } else if (totalCaloriesIn < goalCalories * 0.9) {
+    tips.push({
+      area: "nutrition",
+      title: "Calorie intake is below goal",
+      message: "Plan one more balanced meal or snack if you still feel hungry."
+    });
+  } else if (totalCaloriesIn > goalCalories * 1.25) {
+    tips.push({
+      area: "nutrition",
+      title: "Calorie intake is far above goal",
+      message: "Keep the next meal lighter and prioritize water, vegetables, and lean protein."
+    });
+  } else if (totalCaloriesIn > goalCalories * 1.05) {
+    tips.push({
+      area: "nutrition",
+      title: "Calorie intake is above goal",
+      message: "A lighter dinner or a walk can help balance the day."
+    });
+  }
+
+  if (protein > 0 && protein < 50) {
+    tips.push({
+      area: "nutrition",
+      title: "Protein intake appears low",
+      message: "Aim to include 25-35g protein in your next meal."
+    });
+  } else if (protein >= 80) {
+    tips.push({
+      area: "nutrition",
+      title: "Protein balance looks solid",
+      message: "Keep distributing protein across meals for steady energy."
+    });
+  }
+
+  if (summary.workoutsCount === 0) {
+    tips.push({
+      area: "workout",
+      title: "No workout logged today",
+      message: "A 20-30 minute walk or bodyweight session can keep your routine active."
+    });
+  } else if (workoutMinutes < 20) {
+    tips.push({
+      area: "workout",
+      title: "Very short workout day",
+      message: "If you have time, add a few mobility or core minutes."
+    });
+  } else if (workoutMinutes >= 90) {
+    tips.push({
+      area: "recovery",
+      title: "Recovery should be prioritized",
+      message: "Give yourself enough sleep, hydration, and a calmer next session."
+    });
+  } else {
+    tips.push({
+      area: "workout",
+      title: "Workout volume is moderate",
+      message: "Good consistency today. Keep the next session focused and manageable."
+    });
+  }
+
+  return {
+    date: summary.date,
+    disclaimer: recommendationDisclaimer,
+    tips: sanitizeTips(tips).slice(0, 4)
+  };
+}
+
+export async function getDailyRecommendations(userId: number, date?: string) {
+  await getProfile(userId);
+  const summary = await getDashboardSummary(userId, date);
+  return buildDailyRecommendations(summary);
+}
+
 // ─── Reminders ──────────────────────────────────────────
+function formatReminderTime(value: any) {
+  if (!value) return "20:00";
+  if (value instanceof Date) {
+    return value.toISOString().slice(11, 16);
+  }
+  if (typeof value === "string") {
+    return value.slice(0, 5);
+  }
+  return "20:00";
+}
+
+function parseReminderTime(value: any) {
+  if (typeof value !== "string" || !/^\d{2}:\d{2}$/.test(value)) return undefined;
+  const [hours, minutes] = value.split(":").map(Number);
+  if (hours > 23 || minutes > 59) return undefined;
+  return new Date(`1970-01-01T${value}:00.000Z`);
+}
+
 export async function getReminderSettings(userId: number) {
   let r = await prisma.reminders.findUnique({ where: { user_id: userId } });
   if (!r) {
     r = await prisma.reminders.create({ data: { user_id: userId } });
   }
-  return { userId: r.user_id, enabled: r.enabled, reminderTime: r.reminder_time, frequency: r.frequency, updatedAt: r.updated_at };
+  return { userId: r.user_id, enabled: r.enabled, reminderTime: formatReminderTime(r.reminder_time), frequency: r.frequency, updatedAt: r.updated_at };
 }
 
 export async function updateReminderSettings(userId: number, input: any) {
@@ -297,10 +426,14 @@ export async function updateReminderSettings(userId: number, input: any) {
 
   if (input.enabled !== undefined) data.enabled = input.enabled;
   if (input.frequency !== undefined && allowedFreqs.includes(input.frequency)) data.frequency = input.frequency;
-  // Ignoring reminderTime since prisma time field handling requires mapping
+  if (input.reminderTime !== undefined) {
+    const reminderTime = parseReminderTime(input.reminderTime);
+    if (!reminderTime) throw createAppError("Invalid reminderTime");
+    data.reminder_time = reminderTime;
+  }
 
   const r = await prisma.reminders.update({ where: { user_id: userId }, data });
-  return { userId: r.user_id, enabled: r.enabled, reminderTime: r.reminder_time, frequency: r.frequency, updatedAt: r.updated_at };
+  return { userId: r.user_id, enabled: r.enabled, reminderTime: formatReminderTime(r.reminder_time), frequency: r.frequency, updatedAt: r.updated_at };
 }
 
 // ─── Food Catalog ───────────────────────────────────────
