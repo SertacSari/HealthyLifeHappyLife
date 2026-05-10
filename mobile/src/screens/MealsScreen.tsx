@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { RecipeScreen } from "./RecipeScreen";
 import { createMeal } from "../api";
 import {
   Modal,
@@ -33,6 +34,15 @@ export function MealsScreen({
   const [protein, setProtein] = useState("");
   const [carbs, setCarbs] = useState("");
   const [fats, setFats] = useState("");
+  const [showRecipes, setShowRecipes] =
+  useState(false);
+  if (showRecipes) {
+  return (
+    <RecipeScreen
+      onBack={() => setShowRecipes(false)}
+    />
+  );
+}
 
   async function handleSaveMeal() {
   try {
@@ -57,6 +67,7 @@ export function MealsScreen({
     console.log(error);
   }
 }
+
   return (
     
     <ScrollView
@@ -83,6 +94,21 @@ export function MealsScreen({
           />
         </View>
       </View>
+      <TouchableOpacity
+  style={styles.recipeButton}
+  onPress={() => setShowRecipes(true)}
+>
+  <Ionicons
+    name="book"
+    size={20}
+    color="white"
+  />
+
+  <Text style={styles.recipeButtonText}>
+    Recipe Finder
+  </Text>
+</TouchableOpacity>
+
 
       {meals.length === 0 ? (
         <AppCard>
@@ -147,6 +173,7 @@ export function MealsScreen({
                 </Text>
               </View>
             </View>
+            
           </AppCard>
         ))
       )}
@@ -414,6 +441,25 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     paddingVertical: 8,
   },
+  recipeButton: {
+  backgroundColor: colors.primary,
+  borderRadius: 18,
+  paddingVertical: 14,
+  paddingHorizontal: 18,
+
+  flexDirection: "row",
+  alignItems: "center",
+  justifyContent: "center",
+
+  gap: 8,
+  marginBottom: 22,
+},
+
+recipeButtonText: {
+  color: "white",
+  fontWeight: "700",
+  fontSize: 16,
+},
 });
 
 
