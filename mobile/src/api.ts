@@ -154,3 +154,76 @@ export async function updateReminderSettings(
   const data = await request<{ settings: ReminderSettings }>("/reminders/settings", "PUT", token, payload);
   return data.settings;
 }
+
+// ─── Food Catalog ───────────────────────────────────────
+export async function searchFoods(token: string, query?: string, category?: string): Promise<any[]> {
+  const params = new URLSearchParams();
+  if (query) params.set("q", query);
+  if (category) params.set("category", category);
+  const data = await request<{ foods: any[] }>(`/foods/search?${params}`, "GET", token);
+  return data.foods;
+}
+
+export async function getFoodCategories(token: string): Promise<string[]> {
+  const data = await request<{ categories: string[] }>("/foods/categories", "GET", token);
+  return data.categories;
+}
+
+export async function addMealFromCatalog(token: string, foodId: number, servings: number): Promise<Meal> {
+  const data = await request<{ meal: Meal }>("/meals/from-catalog", "POST", token, { foodId, servings });
+  return data.meal;
+}
+
+export async function toggleFavorite(token: string, foodId: number): Promise<{ favorited: boolean }> {
+  return request<{ favorited: boolean }>("/foods/favorite", "POST", token, { foodId });
+}
+
+export async function listFavorites(token: string): Promise<any[]> {
+  const data = await request<{ foods: any[] }>("/foods/favorites", "GET", token);
+  return data.foods;
+}
+
+// ─── Water ──────────────────────────────────────────────
+export async function addWater(token: string, amountMl: number) {
+  return request<{ log: any }>("/water", "POST", token, { amountMl });
+}
+
+export async function getWaterToday(token: string, date?: string) {
+  const suffix = date ? `?date=${date}` : "";
+  const data = await request<{ water: any }>(`/water${suffix}`, "GET", token);
+  return data.water;
+}
+
+// ─── Body Measurements ──────────────────────────────────
+export async function addMeasurement(token: string, payload: { weightKg?: number; heightCm?: number; note?: string }) {
+  const data = await request<{ measurement: any }>("/measurements", "POST", token, payload);
+  return data.measurement;
+}
+
+export async function listMeasurements(token: string) {
+  const data = await request<{ measurements: any[] }>("/measurements", "GET", token);
+  return data.measurements;
+}
+
+// ─── Workout Templates ──────────────────────────────────
+export async function getWorkoutTemplates(token: string, category?: string) {
+  const suffix = category ? `?category=${category}` : "";
+  const data = await request<{ templates: any[] }>(`/workout-templates${suffix}`, "GET", token);
+  return data.templates;
+}
+
+export async function logWorkoutFromTemplate(token: string, templateId: number) {
+  const data = await request<{ workout: Workout }>("/workouts/from-template", "POST", token, { templateId });
+  return data.workout;
+}
+
+// ─── Weekly & Streak ────────────────────────────────────
+export async function getWeeklySummary(token: string) {
+  const data = await request<{ weekly: any[] }>("/dashboard/weekly", "GET", token);
+  return data.weekly;
+}
+
+export async function getStreak(token: string) {
+  const data = await request<{ streak: number }>("/dashboard/streak", "GET", token);
+  return data.streak;
+}

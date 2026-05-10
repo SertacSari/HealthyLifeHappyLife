@@ -1,82 +1,141 @@
-# ENS492 Month 1 MVP Implementation
+# HealthyLifeHappyLife — ENS492 Fitness Tracking App
 
-This repository now contains a coded Month 1 MVP foundation aligned to:
-[ENS492_Improved_Project_Plan.md](/Users/sertac/Desktop/ENS492/ENS492_Improved_Project_Plan.md)
+A full-stack mobile fitness tracking application built with **React Native (Expo)**, **Express.js**, and **PostgreSQL**.
 
-## Implemented Scope
+## Features
 
-- Authentication: signup, login, token-based protected routes
-- Logout endpoint for token-based client session clearing
-- Profile: fetch and update profile goals
-- Diet tracking: add and list meals
-- Workout tracking: add and list workouts
-- Dashboard: daily summary endpoint
-- Mobile app: auth + dashboard + meals + workouts + profile tabs with real lists/forms
-- Verification: automated backend smoke test for end-to-end Month 1 core flow
+- **Authentication** — Secure signup/login with hashed passwords and JWT tokens
+- **Profile Management** — Set daily calorie goals and weekly workout targets
+- **Meal Tracking** — Log meals with full macro breakdown (protein, carbs, fats)
+- **Workout Tracking** — Log workouts with duration and calories burned
+- **Dashboard** — Real-time daily summary with progress bars and macro charts
+- **Coach** — AI-powered daily recommendations (rule-based, non-medical wellness tips)
+- **Reminders** — Configurable reminder preferences (time, frequency)
+- **Social** — Follow/unfollow users, view followers and following lists
+
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Mobile | React Native + Expo (TypeScript) |
+| Navigation | React Navigation (Bottom Tabs) |
+| Backend | Node.js + Express.js |
+| Database | PostgreSQL 16 |
+| Auth | HMAC-signed JWT + scrypt password hashing |
 
 ## Project Structure
 
-- `backend/`: Node.js API server and JSON persistence
-- `mobile/`: React Native app for full Month 1 core user flow
-- `docs/`: API contracts and Month 1 completion checklist
+```
+├── backend/
+│   ├── migrations/       # SQL schema files
+│   ├── src/
+│   │   ├── auth.js       # Password hashing & token management
+│   │   ├── config.js     # Environment configuration
+│   │   ├── db.js         # PostgreSQL connection pool
+│   │   ├── server.js     # Express.js routes
+│   │   ├── services.js   # Business logic (async + SQL)
+│   │   └── validation.js # Input validation helpers
+│   └── test/             # Backend tests
+├── mobile/
+│   ├── App.tsx            # Main app with tab navigation
+│   └── src/
+│       ├── api.ts         # REST API client
+│       ├── theme.ts       # Design system (colors, spacing)
+│       ├── types.ts       # TypeScript type definitions
+│       └── screens/       # Screen components
+│           ├── AuthScreen.tsx
+│           ├── DashboardScreen.tsx
+│           ├── MealsScreen.tsx
+│           ├── WorkoutsScreen.tsx
+│           ├── ProfileScreen.tsx
+│           ├── CoachScreen.tsx
+│           └── SocialScreen.tsx
+└── docs/
+    ├── API_CONTRACT.md
+    └── screenshots/
+```
 
 ## Quick Start
 
-### 0. One Terminal (Root)
+### Prerequisites
+
+- Node.js >= 18
+- PostgreSQL 16 (`brew install postgresql@16`)
+
+### 1. Database Setup
 
 ```bash
-cd /Users/sertac/Desktop/ENS492
-npm run dev
+brew services start postgresql@16
+export PATH="/opt/homebrew/opt/postgresql@16/bin:$PATH"
+createdb healthylife
+cd backend
+psql -d healthylife -f migrations/001_initial_schema.sql
 ```
 
-This starts backend and mobile together in one terminal.
-Press `Ctrl+C` to stop both.
-
-### 1. Backend
+### 2. Backend
 
 ```bash
 cd backend
 cp .env.example .env
-npm run start
+npm install
+npm start
 ```
 
 Backend runs at `http://localhost:4000`.
-
-### 2. Backend Verification
-
-```bash
-cd backend
-npm run test
-npm run smoke
-```
 
 ### 3. Mobile App
 
 ```bash
 cd mobile
 npm install
-EXPO_PUBLIC_API_URL=http://localhost:4000 npm run start
+EXPO_PUBLIC_API_URL=http://localhost:4000 npx expo start
 ```
 
-Prefer setting `EXPO_PUBLIC_API_URL` if your backend host differs from `http://localhost:4000`, especially for device testing on the same local network.
-Edit the fallback value in [mobile/src/api.ts](/Users/sertac/Desktop/ENS492/mobile/src/api.ts) only if you want to change the default permanently.
+Then press:
+- `w` for web browser
+- `i` for iOS Simulator (requires Xcode)
+- `a` for Android Emulator (requires Android Studio)
 
-Examples:
+### Device-Specific API URLs
 
-- iOS simulator on the same Mac: `EXPO_PUBLIC_API_URL=http://localhost:4000 npm run start`
-- Android emulator: `EXPO_PUBLIC_API_URL=http://10.0.2.2:4000 npm run start`
-- Real phone on the same Wi-Fi: `EXPO_PUBLIC_API_URL=http://YOUR_COMPUTER_IP:4000 npm run start`
+| Platform | API URL |
+|---|---|
+| iOS Simulator | `http://localhost:4000` |
+| Android Emulator | `http://10.0.2.2:4000` |
+| Physical device | `http://YOUR_COMPUTER_IP:4000` |
 
-Troubleshooting `Cannot reach backend`:
+## API Endpoints
 
-1. Verify backend is up: `curl http://localhost:4000/health`
-2. Restart Expo with cache clear after URL changes: `npx expo start -c`
-3. Use the in-app `Check Backend` button and confirm the shown `API:` value is reachable from your device.
+See [docs/API_CONTRACT.md](docs/API_CONTRACT.md) for full details.
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| GET | /health | No | Health check |
+| POST | /auth/signup | No | Register new user |
+| POST | /auth/login | No | Login |
+| POST | /auth/logout | Yes | Logout |
+| GET | /auth/me | Yes | Current user info |
+| GET | /profile | Yes | Get profile |
+| PUT | /profile | Yes | Update profile goals |
+| POST | /meals | Yes | Log a meal |
+| GET | /meals | Yes | List meals |
+| POST | /workouts | Yes | Log a workout |
+| GET | /workouts | Yes | List workouts |
+| GET | /dashboard/summary | Yes | Daily summary |
+| GET | /recommendations/daily | Yes | Coach tips |
+| GET | /reminders/settings | Yes | Get reminder settings |
+| PUT | /reminders/settings | Yes | Update reminders |
+| POST | /social/follow | Yes | Follow a user |
+| POST | /social/unfollow | Yes | Unfollow a user |
+| GET | /social/following | Yes | List following |
+| GET | /social/followers | Yes | List followers |
 
 ## Engineering Notes
 
-- Passwords are hashed with `crypto.scrypt`.
-- Token auth uses an HMAC signed JWT-style token.
-- HTTP handlers are separated from core business logic in `backend/src/services.js`.
-- Data persistence uses `backend/data/db.json` for a zero-dependency MVP.
-- For production-level Month 2+, replace JSON persistence with PostgreSQL migration-based storage.
+- Passwords are hashed with `crypto.scrypt` and timing-safe comparison
+- Token auth uses HMAC-signed JWT with configurable TTL
+- Business logic is separated in `services.js` (route handlers are thin)
+- PostgreSQL with connection pooling via `pg` library
+- All service functions are async with proper error propagation
+- Database schema uses foreign keys, check constraints, and indexes
+- Recommendation engine has a safety layer blocking medical terminology
