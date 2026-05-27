@@ -308,6 +308,7 @@ export type CoachMealSuggestionRequest = {
   timeAvailableMinutes?: number;
   hungerLevel?: string;
   budgetPreference?: string;
+  coachMode?: string;
 };
 
 export type CoachMealSuggestion = {
@@ -324,6 +325,36 @@ export type CoachMealSuggestions = {
   disclaimer: string;
   suggestions: CoachMealSuggestion[];
   source: "llm" | "fallback" | string;
+};
+
+export type CoachTodayPlan = {
+  disclaimer: string;
+  date: string;
+  mode: string;
+  source: "rules" | "llm" | "fallback" | string;
+  inputsUsed: string[];
+  summary: {
+    caloriesConsumed: number;
+    caloriesRemaining: number | null;
+    proteinConsumed: number;
+    proteinRemaining: number | null;
+    mealsLogged: number;
+    workoutsLogged: number;
+  };
+  nextMeal: CoachMealSuggestion & {
+    reason: string;
+    fitScore: number;
+  };
+  workout: {
+    title: string;
+    type: string;
+    durationMinutes: number;
+    intensity: string;
+    reason: string;
+    source: string;
+  } | null;
+  coachNote: string;
+  nextBestAction: string;
 };
 
 export type CoachWeeklyReview = {

@@ -7,6 +7,7 @@ const { isDateKey } = require("./validation");
 const { searchFoods } = require("./fatsecretClient");
 const {
   generateMealSuggestions,
+  buildCoachTodayPlan,
   generateWeeklyProgressSummary
 } = require("./aiCoachService");
 const {
@@ -141,7 +142,35 @@ function buildMealSuggestionContext(db, userId, body) {
     allergies: profile.allergies || [],
     timeAvailableMinutes: request.timeAvailableMinutes,
     hungerLevel: request.hungerLevel,
-    budgetPreference: request.budgetPreference
+    budgetPreference: request.budgetPreference,
+    coachMode: request.coachMode || request.mode
+  };
+}
+
+function buildTodayPlanContext(db, userId, date, mode) {
+  const profile = getProfile(db, userId);
+  const summary = getDashboardSummary(db, userId, date);
+  const targets = getNutritionTargets(db, userId);
+  const meals = listMeals(db, userId, date);
+  const foodItems = listFoodItems(db, userId, {});
+  const checkIn = getDailyCheckIn(db, userId, date);
+  const workoutRecommendation = getWorkoutRecommendation(db, userId, date);
+  return {
+    date,
+    mode,
+    coachMode: mode,
+    profile,
+    summary,
+    targets,
+    meals,
+    recentMeals: meals.map(mealName),
+    foodItems,
+    storeItems: foodItems.map((item) => item.name),
+    availableIngredients: foodItems.slice(0, 12).map((item) => item.name),
+    dietaryConstraints: profile.restrictions || [],
+    allergies: profile.allergies || [],
+    checkIn,
+    workoutRecommendation
   };
 }
 
@@ -265,6 +294,24 @@ async function handleMealSuggestions(req, res, options) {
     const context = buildMealSuggestionContext(db, user.id, body);
     const suggestions = await generateMealSuggestions(context, options.aiCoachOptions || {});
     return sendJson(res, 200, { suggestions });
+  } catch (error) {
+    return sendServiceError(res, error);
+  }
+}
+
+async function handleTodayPlan(req, res, url) {
+  try {
+    const db = await loadDb();
+    const user = authUser(req, db);
+    if (!user) {
+      return sendJson(res, 401, { error: "Unauthorized" });
+    }
+    const selectedDate = getValidatedDateQuery(url);
+    const mode = url.searchParams.get("mode") || "balanced";
+    const context = buildTodayPlanContext(db, user.id, selectedDate, mode);
+    context.recommendations = await getDailyRecommendationsHybrid(db, user.id, selectedDate);
+    const plan = buildCoachTodayPlan(context);
+    return sendJson(res, 200, { plan });
   } catch (error) {
     return sendServiceError(res, error);
   }
@@ -1032,6 +1079,12 @@ function createServer(options = {}) {
           return sendMethodNotAllowed(res);
         }
         return handleMealSuggestions(req, res, options);
+      }
+      if (path === "/coach/today-plan") {
+        if (req.method !== "GET") {
+          return sendMethodNotAllowed(res);
+        }
+        return handleTodayPlan(req, res, url);
       }
       if (path === "/coach/weekly-review") {
         if (req.method !== "GET") {

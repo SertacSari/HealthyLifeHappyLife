@@ -3,6 +3,7 @@ import type {
   AuthResponse,
   CoachMealSuggestionRequest,
   CoachMealSuggestions,
+  CoachTodayPlan,
   CoachWeeklyReview,
   CreateFoodItemPayload,
   CreateMealPayload,
@@ -291,6 +292,23 @@ export async function getCoachMealSuggestions(
 ): Promise<CoachMealSuggestions> {
   const data = await request<{ suggestions: CoachMealSuggestions }>("/coach/meal-suggestions", "POST", token, payload);
   return data.suggestions;
+}
+
+export async function getCoachTodayPlan(
+  token: string,
+  date?: string,
+  mode?: string
+): Promise<CoachTodayPlan> {
+  const params = new URLSearchParams();
+  if (date) {
+    params.set("date", date);
+  }
+  if (mode) {
+    params.set("mode", mode);
+  }
+  const suffix = params.toString() ? `?${params.toString()}` : "";
+  const data = await request<{ plan: CoachTodayPlan }>(`/coach/today-plan${suffix}`, "GET", token);
+  return data.plan;
 }
 
 export async function getCoachWeeklyReview(

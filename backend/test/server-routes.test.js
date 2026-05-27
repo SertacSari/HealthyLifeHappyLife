@@ -192,6 +192,54 @@ test("HTTP /coach/meal-suggestions returns fallback without Ollama", async () =>
   );
 });
 
+test("HTTP /coach/today-plan returns combined daily coach context", async () => {
+  await withTestServer(async (server) => {
+    const user = await signup(server, "today-plan@example.com", "Today Plan");
+
+    await requestJson(server, "/profile/onboarding", {
+      method: "PUT",
+      headers: authHeaders(user),
+      body: JSON.stringify({
+        name: "Today Plan",
+        age: 22,
+        sex: "male",
+        heightCm: 178,
+        weightKg: 78,
+        activityLevel: "moderate",
+        goalType: "lose_fat",
+        dietPreference: "high_protein",
+        privacyPreference: "friends",
+        goalWorkoutsPerWeek: 4
+      })
+    });
+
+    await requestJson(server, "/meals", {
+      method: "POST",
+      headers: authHeaders(user),
+      body: JSON.stringify({
+        name: "Egg breakfast",
+        calories: 420,
+        protein: 28,
+        carbs: 34,
+        fats: 18,
+        loggedAt: "2026-05-25T08:00:00.000Z"
+      })
+    });
+
+    const result = await requestJson(server, "/coach/today-plan?date=2026-05-25&mode=protein", {
+      headers: authHeaders(user)
+    });
+
+    assert.equal(result.response.status, 200);
+    assert.equal(result.body.plan.date, "2026-05-25");
+    assert.equal(result.body.plan.mode, "protein");
+    assert.equal(result.body.plan.source, "rules");
+    assert.equal(result.body.plan.summary.mealsLogged, 1);
+    assert.equal(typeof result.body.plan.nextMeal.reason, "string");
+    assert.ok(result.body.plan.inputsUsed.includes("profile targets"));
+  });
+});
+
 test("HTTP social post create, feed, like, comment, and copy-to-log are wired", async () => {
   await withTestServer(async (server) => {
     const owner = await signup(server, "owner-route@example.com", "Owner Route");

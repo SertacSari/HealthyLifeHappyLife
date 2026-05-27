@@ -4,6 +4,7 @@ const {
   generateMealSuggestions,
   validateMealSuggestionPayload,
   fallbackMealSuggestions,
+  buildCoachTodayPlan,
   generateWeeklyProgressSummary,
   validateWeeklySummaryPayload
 } = require("../src/aiCoachService");
@@ -90,6 +91,40 @@ test("meal validation rejects ingredients outside constrained context", () => {
   };
 
   assert.equal(validateMealSuggestionPayload(validShapeUnknownIngredient, context), null);
+});
+
+test("today plan combines targets, summary, mode, and workout reason", () => {
+  const plan = buildCoachTodayPlan({
+    date: "2026-05-25",
+    coachMode: "budget",
+    summary: {
+      totalCaloriesIn: 700,
+      mealsCount: 1,
+      workoutsCount: 0,
+      macros: { protein: 35 },
+      goals: { goalCalories: 2200 }
+    },
+    targets: {
+      dailyCalorieTarget: 2200,
+      proteinTarget: 150
+    },
+    availableIngredients: ["eggs", "rice", "lentils"],
+    checkIn: { energyLevel: 2, soreness: 3 },
+    workoutRecommendation: {
+      title: "Recovery-focused movement",
+      workoutType: "recovery",
+      durationMinutes: 20,
+      intensity: "low",
+      reason: "Daily check-in suggests lower readiness today."
+    }
+  });
+
+  assert.equal(plan.mode, "budget");
+  assert.equal(plan.summary.caloriesRemaining, 1500);
+  assert.equal(plan.summary.proteinRemaining, 115);
+  assert.equal(plan.workout.title, "Recovery-focused movement");
+  assert.ok(plan.nextMeal.reason.includes("budget student meal"));
+  assert.ok(plan.nextMeal.fitScore >= 0 && plan.nextMeal.fitScore <= 100);
 });
 
 test("weekly summary validation accepts safe progress JSON", () => {

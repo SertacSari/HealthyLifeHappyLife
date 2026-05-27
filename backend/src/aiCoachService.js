@@ -4,6 +4,14 @@ const NON_MEDICAL_DISCLAIMER =
   "General wellness guidance only. This app does not provide medical advice, diagnosis, or treatment.";
 const DEFAULT_MEAL_TYPES = ["breakfast", "lunch", "dinner", "snack"];
 const DEFAULT_ITEMS = ["eggs", "oats", "yogurt", "chicken", "rice", "beans", "lentils", "tuna", "greens", "banana"];
+const COACH_MODE_COPY = {
+  turkish: "Turkish/local-food first",
+  budget: "budget student meal",
+  protein: "high-protein",
+  quick: "quick low-effort",
+  post_workout: "after-workout recovery",
+  low_energy: "low-energy day"
+};
 
 const SAFETY_PATTERNS = [
   /\bdiagnos(e|is|ed|ing)\b/i,
@@ -190,6 +198,8 @@ function fallbackMealSuggestions(context = {}) {
   const items = getContextItems(context);
   const selectedItems = (items.length ? items : DEFAULT_ITEMS).slice(0, 8);
   const goalCalories = Number(context?.goals?.goalCalories || context?.goalCalories || 2000);
+  const mode = normalizeCoachMode(context.coachMode || context.mode);
+  const modeCopy = COACH_MODE_COPY[mode] || "balanced";
   const mealCalories = Math.min(750, Math.max(350, Math.round(goalCalories / 4)));
   const suggestions = [0, 1, 2].map((offset) => {
     const first = selectedItems[offset % selectedItems.length];
@@ -197,9 +207,9 @@ function fallbackMealSuggestions(context = {}) {
     const third = selectedItems[(offset + 6) % selectedItems.length] || selectedItems[0];
     const calories = mealCalories + offset * 45;
     return {
-      title: `${first} balanced ${DEFAULT_MEAL_TYPES[offset]}`,
+      title: `${first} ${modeCopy} ${DEFAULT_MEAL_TYPES[offset]}`,
       mealType: DEFAULT_MEAL_TYPES[offset],
-      description: `Build a simple plate with ${first}, ${second}, and ${third}. Keep portions moderate and adjust seasoning to preference.`,
+      description: `Build a simple ${modeCopy} plate with ${first}, ${second}, and ${third}. Keep portions moderate and adjust seasoning to preference.`,
       calories,
       macros: {
         protein: Math.round(calories * 0.25 / 4),
@@ -207,7 +217,7 @@ function fallbackMealSuggestions(context = {}) {
         fats: Math.round(calories * 0.3 / 9)
       },
       ingredients: uniqueStrings([first, second, third], 6),
-      rationale: "Uses available foods and keeps the meal balanced without extreme restriction."
+      rationale: `Uses available foods, the ${modeCopy} coach mode, and keeps the meal realistic without extreme restriction.`
     };
   });
 
@@ -219,8 +229,11 @@ function fallbackMealSuggestions(context = {}) {
 }
 
 function buildMealPrompt(context) {
+  const coachMode = normalizeCoachMode(context?.coachMode || context?.mode);
   const safeContext = {
     date: context?.date,
+    coachMode,
+    coachModeMeaning: COACH_MODE_COPY[coachMode] || "balanced",
     goals: context?.goals || null,
     dietaryConstraints: context?.dietaryConstraints || [],
     allergies: context?.allergies || [],
@@ -232,11 +245,100 @@ function buildMealPrompt(context) {
     "You are the meal suggestion layer for HealthyLifeHappyLife.",
     "Return JSON only. Do not use markdown.",
     "Give non-medical wellness meal ideas only. No diagnosis, treatment, cure, medicine, supplement, detox, fasting, or extreme restriction claims.",
+    "Optimize suggestions for the provided coachMode while staying practical for a student.",
     "If availableIngredients are provided, every ingredient in each suggestion must come from that list.",
     'Required JSON shape: {"suggestions":[{"title":string,"mealType":"breakfast|lunch|dinner|snack","description":string,"calories":number,"macros":{"protein":number,"carbs":number,"fats":number},"ingredients":[string],"rationale":string}]}',
     "Keep each meal between 150 and 900 calories with plausible macros.",
     `Context: ${JSON.stringify(safeContext)}`
   ].join("\n");
+}
+
+function normalizeCoachMode(value) {
+  const normalized = String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+  return COACH_MODE_COPY[normalized] ? normalized : "balanced";
+}
+
+function clampPercent(value) {
+  return Math.max(0, Math.min(100, Math.round(value)));
+}
+
+function buildCoachTodayPlan(context = {}) {
+  const summary = context.summary || {};
+  const targets = context.targets || {};
+  const workout = context.workoutRecommendation || null;
+  const checkIn = context.checkIn || null;
+  const recommendations = context.recommendations || null;
+  const coachMode = normalizeCoachMode(context.coachMode || context.mode);
+  const availableItems = getContextItems(context);
+  const dailyCalorieTarget = Number(targets.dailyCalorieTarget || summary.goals?.goalCalories || context.goalCalories || 0);
+  const proteinTarget = Number(targets.proteinTarget || context.proteinTarget || 0);
+  const caloriesIn = Number(summary.totalCaloriesIn || 0);
+  const proteinIn = Number(summary.macros?.protein || 0);
+  const remainingCalories = dailyCalorieTarget > 0 ? Math.max(0, dailyCalorieTarget - caloriesIn) : null;
+  const remainingProtein = proteinTarget > 0 ? Math.max(0, proteinTarget - proteinIn) : null;
+  const fallbackMeals = fallbackMealSuggestions({
+    ...context,
+    coachMode,
+    goalCalories: dailyCalorieTarget || context.goalCalories,
+    availableIngredients: availableItems
+  });
+  const nextMeal = fallbackMeals.suggestions[0];
+  const reasonParts = [
+    dailyCalorieTarget ? `${remainingCalories} kcal remaining` : "calorie target unavailable",
+    proteinTarget ? `${remainingProtein}g protein remaining` : "protein target unavailable",
+    checkIn ? "today's check-in" : "no check-in yet",
+    `${COACH_MODE_COPY[coachMode] || "balanced"} mode`
+  ];
+  const calorieFit = dailyCalorieTarget ? 100 - Math.abs((remainingCalories || 0) - nextMeal.calories) / dailyCalorieTarget * 100 : 70;
+  const proteinFit = remainingProtein !== null ? Math.min(100, (nextMeal.macros.protein / Math.max(remainingProtein, 1)) * 100) : 70;
+  const fitScore = clampPercent((calorieFit + proteinFit) / 2);
+
+  return {
+    disclaimer: NON_MEDICAL_DISCLAIMER,
+    date: context.date,
+    mode: coachMode,
+    source: "rules",
+    inputsUsed: [
+      "profile targets",
+      "today's meal log",
+      "food library",
+      checkIn ? "daily check-in" : "default readiness",
+      recommendations ? "daily recommendations" : "rules fallback"
+    ],
+    summary: {
+      caloriesConsumed: caloriesIn,
+      caloriesRemaining: remainingCalories,
+      proteinConsumed: proteinIn,
+      proteinRemaining: remainingProtein,
+      mealsLogged: Number(summary.mealsCount || 0),
+      workoutsLogged: Number(summary.workoutsCount || 0)
+    },
+    nextMeal: {
+      ...nextMeal,
+      reason: `Recommended because you have ${reasonParts.join(", ")}.`,
+      fitScore
+    },
+    workout: workout
+      ? {
+          title: workout.title,
+          type: workout.workoutType,
+          durationMinutes: workout.durationMinutes,
+          intensity: workout.intensity,
+          reason: workout.reason,
+          source: "rules"
+        }
+      : null,
+    coachNote: recommendations?.tips?.[0]?.message || "Log a meal and check-in to make today's plan more adaptive.",
+    nextBestAction:
+      remainingProtein !== null && remainingProtein > 25
+        ? "Choose a protein-forward meal from the food library."
+        : checkIn
+          ? "Follow the readiness-matched workout and keep meals simple."
+          : "Add a daily check-in so the coach can adapt intensity."
+  };
 }
 
 async function generateMealSuggestions(userContext, options = {}) {
@@ -347,6 +449,7 @@ module.exports = {
   generateMealSuggestions,
   validateMealSuggestionPayload,
   fallbackMealSuggestions,
+  buildCoachTodayPlan,
   generateWeeklyProgressSummary,
   validateWeeklySummaryPayload,
   fallbackWeeklyProgressSummary,

@@ -20,6 +20,7 @@ import {
   createSocialPost,
   getDailyRecommendations,
   getCoachMealSuggestions,
+  getCoachTodayPlan,
   getCoachWeeklyReview,
   getDailyCheckIn,
   getNutritionTargets,
@@ -49,6 +50,7 @@ import {
 import type {
   ActivityLevel,
   CoachWeeklyReview,
+  CoachTodayPlan,
   DailyRecommendations,
   DashboardSummary,
   FoodItem,
@@ -113,6 +115,14 @@ const QUICK_WORKOUT_DURATIONS = ["20", "30", "45", "60"];
 const QUICK_WORKOUT_CALORIES = ["150", "250", "350", "500"];
 const QUICK_COACH_TIMES = ["10", "20", "30", "45"];
 const COACH_BUDGETS = ["Low", "Medium", "Flexible"];
+const COACH_MODES = [
+  { label: "Turkish", value: "turkish" },
+  { label: "Budget", value: "budget" },
+  { label: "High protein", value: "protein" },
+  { label: "Quick", value: "quick" },
+  { label: "Post-workout", value: "post_workout" },
+  { label: "Low energy", value: "low_energy" }
+];
 const INGREDIENT_CHIPS = ["eggs", "yogurt", "chicken", "rice", "spinach", "beans", "tuna", "oats"];
 const WORKOUT_EXERCISES = [
   { name: "Squat", emoji: "🏋️", type: "Strength", cue: "Rooted strength", defaultKg: "40", defaultReps: "8", defaultTries: "3" },
@@ -228,6 +238,10 @@ function formatReminderFrequency(value: ReminderFrequency) {
     return "Weekdays";
   }
   return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+function formatCoachMode(value: string) {
+  return COACH_MODES.find((mode) => mode.value === value)?.label || "Balanced";
 }
 
 function todayKey() {
@@ -505,9 +519,11 @@ export default function App() {
   const [coachTimeAvailable, setCoachTimeAvailable] = useState("20");
   const [coachHunger, setCoachHunger] = useState("Medium");
   const [coachBudget, setCoachBudget] = useState("Medium");
+  const [coachMode, setCoachMode] = useState("turkish");
   const [coachIngredients, setCoachIngredients] = useState("eggs, spinach, rice");
   const [coachSuggestions, setCoachSuggestions] = useState<CoachSuggestion[]>([]);
   const [savedCoachPlan, setSavedCoachPlan] = useState("");
+  const [todayPlan, setTodayPlan] = useState<CoachTodayPlan | null>(null);
   const [weeklyReview, setWeeklyReview] = useState<CoachWeeklyReview | null>(null);
   const [socialFeed, setSocialFeed] = useState<SocialPost[]>([]);
   const [socialMode, setSocialMode] = useState<SocialMode>("Meals");
@@ -976,6 +992,7 @@ export default function App() {
       .map((item) => item.trim())
       .filter(Boolean);
     const ingredientCopy = ingredients.length > 0 ? ingredients.slice(0, 3).join(", ") : "your available foods";
+    const modeCopy = formatCoachMode(coachMode).toLowerCase();
     const hungerCopy =
       coachHunger === "High"
         ? "Use a larger protein serving and fiber-rich side."
@@ -985,9 +1002,9 @@ export default function App() {
 
     return [
       {
-        title: `${coachTimeAvailable || "15"} min meal idea`,
-        body: `Build a ${onboarding.dietPreference.toLowerCase()} plate with ${ingredientCopy}. ${hungerCopy}`,
-        reason: `Based on ${coachTimeAvailable || "15"} minutes available, ${coachHunger.toLowerCase()} hunger, ${coachBudget.toLowerCase()} budget, and ingredients on hand.`,
+        title: `${formatCoachMode(coachMode)} meal idea`,
+        body: `Build a ${modeCopy} ${onboarding.dietPreference.toLowerCase()} plate with ${ingredientCopy}. ${hungerCopy}`,
+        reason: `Used coach mode (${formatCoachMode(coachMode)}), ${coachTimeAvailable || "15"} minutes available, ${coachHunger.toLowerCase()} hunger, ${coachBudget.toLowerCase()} budget, and ingredients on hand.`,
         source: "local" as const,
         action: "meal" as const,
         calories: coachHunger === "High" ? 550 : 350,
@@ -1020,24 +1037,41 @@ export default function App() {
     const localSuggestions = buildLocalCoachSuggestions();
     if (!token) {
       setCoachSuggestions(localSuggestions);
+      setTodayPlan(null);
       setStatus("Coach suggestions generated locally. Login to sync.");
       return;
     }
 
     try {
-      setStatus("Loading coach meal suggestions...");
+      setStatus("Loading today's coach plan...");
       const ingredients = coachIngredients
         .split(",")
         .map((item) => item.trim())
         .filter(Boolean);
-      const mealSuggestions = await getCoachMealSuggestions(token, {
-        availableIngredients: ingredients,
-        timeAvailableMinutes: toNumber(coachTimeAvailable, 20),
-        hungerLevel: coachHunger,
-        budgetPreference: coachBudget
-      });
+      const [plan, mealSuggestions] = await Promise.all([
+        getCoachTodayPlan(token, activeDate, coachMode),
+        getCoachMealSuggestions(token, {
+          availableIngredients: ingredients,
+          timeAvailableMinutes: toNumber(coachTimeAvailable, 20),
+          hungerLevel: coachHunger,
+          budgetPreference: coachBudget,
+          coachMode
+        })
+      ]);
       const adaptiveWorkout = buildAdaptiveWorkout();
+      setTodayPlan(plan);
       setCoachSuggestions([
+        {
+          title: plan.nextMeal.title,
+          body: `${plan.nextMeal.description} Fit score: ${plan.nextMeal.fitScore}/100.`,
+          reason: plan.nextMeal.reason,
+          source: plan.source === "rules" ? ("rules" as const) : ("fallback" as const),
+          action: "meal" as const,
+          calories: plan.nextMeal.calories,
+          protein: plan.nextMeal.macros.protein,
+          carbs: plan.nextMeal.macros.carbs,
+          fats: plan.nextMeal.macros.fats
+        },
         ...mealSuggestions.suggestions.slice(0, 2).map((suggestion) => ({
           title: suggestion.title,
           body: `${suggestion.description} ${suggestion.rationale}`,
@@ -1060,15 +1094,16 @@ export default function App() {
         },
         {
           title: "Coach note",
-          body: mealSuggestions.disclaimer,
-          reason: "Safety note returned with the coach meal suggestion response.",
+          body: plan.nextBestAction,
+          reason: `Today plan used: ${plan.inputsUsed.join(", ")}. ${mealSuggestions.disclaimer}`,
           source: mealSuggestions.source === "llm" ? ("llm" as const) : ("fallback" as const),
           action: "save" as const
         }
       ]);
-      setStatus(`Coach meal suggestions loaded (${mealSuggestions.source})`);
+      setStatus(`Coach plan loaded (${plan.source} + ${mealSuggestions.source})`);
     } catch (error) {
       setCoachSuggestions(localSuggestions);
+      setTodayPlan(null);
       setStatus(`Coach API unavailable. Generated local suggestions: ${String(error)}`);
     }
   }
@@ -2952,9 +2987,24 @@ export default function App() {
         <View style={styles.card}>
           <View style={styles.headerRow}>
             <Text style={styles.section}>Plan Builder</Text>
-            <Text style={styles.sourcePill}>Daily: {recommendationSource}</Text>
+            <Text style={styles.sourcePill}>{formatCoachMode(coachMode)}</Text>
           </View>
           <Text style={styles.small}>Tell the coach what you have and how much time you have. Suggestions can be added directly to today's log.</Text>
+          <Text style={styles.fieldLabel}>Coach mode</Text>
+          <View style={styles.segmentWrap}>
+            {COACH_MODES.map((mode) => {
+              const selected = coachMode === mode.value;
+              return (
+                <TouchableOpacity
+                  key={mode.value}
+                  style={[styles.pillButton, selected ? styles.pillButtonActive : null]}
+                  onPress={() => setCoachMode(mode.value)}
+                >
+                  <Text style={[styles.pillText, selected ? styles.pillTextActive : null]}>{mode.label}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
           <Text style={styles.fieldLabel}>Time available</Text>
           {renderQuickValueRow(QUICK_COACH_TIMES, coachTimeAvailable, setCoachTimeAvailable, " min")}
           {renderDigitPicker("Minutes", coachTimeAvailable, setCoachTimeAvailable, 1, 120, 3, " min")}
@@ -2990,6 +3040,19 @@ export default function App() {
           <TouchableOpacity style={styles.fullButton} onPress={generateCoachSuggestions}>
             <Text style={styles.buttonText}>Build My Plan</Text>
           </TouchableOpacity>
+          {todayPlan ? (
+            <View style={styles.coachReasonBox}>
+              <View style={styles.headerRow}>
+                <Text style={styles.itemTitle}>Today's Plan</Text>
+                <Text style={styles.sourcePill}>{formatSourceLabel(todayPlan.source)}</Text>
+              </View>
+              <Text style={styles.small}>{todayPlan.nextBestAction}</Text>
+              <Text style={styles.small}>
+                Remaining: {todayPlan.summary.caloriesRemaining ?? "--"} kcal · {todayPlan.summary.proteinRemaining ?? "--"}g protein
+              </Text>
+              <Text style={styles.small}>Used: {todayPlan.inputsUsed.join(", ")}</Text>
+            </View>
+          ) : null}
           {coachSuggestions.length === 0 ? (
             <View style={styles.noticeBox}>
               <Text style={styles.itemTitle}>Ready to build a plan</Text>
