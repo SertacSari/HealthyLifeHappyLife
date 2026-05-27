@@ -1,0 +1,363 @@
+{
+  "users": [
+    {
+      "id": 1,
+      "email": "mvp@example.com",
+      "passwordHash": "f297da32f57664462cdbc3bd076af123756b3c455c13909b08961b76e6bc16b6e4f3393d2b32c76d672ddb2b766bcbc744af6b0794f552e1d5726cd199e79f63",
+      "passwordSalt": "b0f67fee8f29ef6a67a52e5ce97c2a20",
+      "createdAt": "2026-05-22T11:44:55.544Z"
+    },
+    {
+      "id": 2,
+      "email": "demo-check-1779736703163@example.com",
+      "passwordHash": "03b70598418ef67b5305f63b395226eb30be78da86daea6837693aba27bdc669c6d943be4bd8251d96b693e6d7f68c5d575383ed1f8cddbb2f2943e2521dfd17",
+      "passwordSalt": "bfec224197b6ee080d1e53ea1c94399e",
+      "createdAt": "2026-05-25T19:18:23.232Z"
+    }
+  ],
+  "profiles": [
+    {
+      "userId": 1,
+      "name": "Updated MVP",
+      "goalCalories": 2200,
+      "goalWorkoutsPerWeek": 4,
+      "updatedAt": "2026-05-22T11:44:55.585Z"
+    },
+    {
+      "userId": 2,
+      "name": "Demo Check",
+      "goalCalories": 3040,
+      "goalWorkoutsPerWeek": 3,
+      "updatedAt": "2026-05-25T19:18:23.237Z",
+      "age": 22,
+      "sex": "male",
+      "gender": "male",
+      "heightCm": 178,
+      "weightKg": 76,
+      "activityLevel": "moderately_active",
+      "goalType": "gain_muscle",
+      "dietPreference": "high protein",
+      "privacyPreference": "public",
+      "restrictions": [],
+      "bmr": 1768,
+      "tdee": 2740,
+      "dailyCalorieTarget": 3040,
+      "proteinTarget": 137,
+      "carbTarget": 434,
+      "fatTarget": 84
+    }
+  ],
+  "meals": [
+    {
+      "id": 1,
+      "userId": 1,
+      "name": "Chicken Bowl",
+      "calories": 650,
+      "protein": 45,
+      "carbs": 50,
+      "fats": 20,
+      "loggedAt": "2026-05-22T11:44:55.585Z"
+    },
+    {
+      "id": 2,
+      "userId": 2,
+      "name": "Grilled Chicken Breast",
+      "calories": 165,
+      "protein": 31,
+      "carbs": 0,
+      "fats": 3.6,
+      "loggedAt": "2026-05-25T19:18:23.243Z",
+      "mealType": "lunch",
+      "foodItemId": 1,
+      "servingMultiplier": 1
+    },
+    {
+      "id": 3,
+      "userId": 2,
+      "name": "Grilled Chicken Breast",
+      "calories": 165,
+      "protein": 31,
+      "carbs": 0,
+      "fats": 3.6,
+      "loggedAt": "2026-05-25T19:18:23.277Z",
+      "copiedFromPostId": 1,
+      "copiedFromUserId": 2
+    },
+    {
+      "id": 4,
+      "userId": 1,
+      "name": "Demo Protein Meal",
+      "calories": 165,
+      "protein": 31,
+      "carbs": 0,
+      "fats": 3.6,
+      "loggedAt": "2026-05-27T12:00:00.000Z",
+      "mealType": "lunch"
+    },
+    {
+      "id": 5,
+      "userId": 1,
+      "name": "Demo Protein Meal",
+      "calories": 165,
+      "protein": 31,
+      "carbs": 0,
+      "fats": 3.6,
+      "loggedAt": "2026-05-27T12:00:00.000Z",
+      "mealType": "lunch"
+    }
+  ],
+  "workouts": [
+    {
+      "id": 1,
+      "userId": 1,
+      "name": "Push Day",
+      "durationMinutes": 60,
+      "caloriesBurned": 350,
+      "loggedAt": "2026-05-22T11:44:55.585Z"
+    }
+  ],
+  "counters": {
+    "user": 3,
+    "meal": 6,
+    "workout": 2,
+    "socialPost": 3,
+    "postComment": 1,
+    "foodItem": 6,
+    "mealTemplate": 3,
+    "dailyCheckIn": 2
+  },
+  "reminders": [
+    {
+      "userId": 1,
+      "enabled": false,
+      "reminderTime": "20:00",
+      "frequency": "daily",
+      "updatedAt": "2026-05-27T10:06:16.758Z"
+    }
+  ],
+  "follows": [],
+  "socialPosts": [
+    {
+      "id": 1,
+      "userId": 2,
+      "mealId": null,
+      "caption": "API demo post",
+      "visibility": "public",
+      "privacy": {
+        "hideCalories": false,
+        "hideMeasurements": true
+      },
+      "meal": {
+        "name": "Grilled Chicken Breast",
+        "calories": 165,
+        "protein": 31,
+        "carbs": 0,
+        "fats": 3.6,
+        "loggedAt": "2026-05-25T19:18:23.243Z"
+      },
+      "privateBodyData": {},
+      "createdAt": "2026-05-25T19:18:23.274Z"
+    },
+    {
+      "id": 2,
+      "userId": 1,
+      "mealId": null,
+      "caption": "Demo meal share",
+      "visibility": "public",
+      "privacy": {
+        "hideCalories": false,
+        "hideMeasurements": true
+      },
+      "meal": {
+        "name": "Demo Protein Meal",
+        "calories": 165,
+        "protein": 31,
+        "carbs": 0,
+        "fats": 3.6,
+        "loggedAt": "2026-05-27T12:00:00.000Z"
+      },
+      "privateBodyData": {},
+      "createdAt": "2026-05-27T10:16:25.256Z"
+    }
+  ],
+  "postLikes": [
+    {
+      "postId": 2,
+      "userId": 1,
+      "createdAt": "2026-05-27T10:16:27.114Z"
+    },
+    {
+      "postId": 1,
+      "userId": 1,
+      "createdAt": "2026-05-27T10:16:28.287Z"
+    }
+  ],
+  "postComments": [],
+  "foodItems": [
+    {
+      "source": "demo",
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z",
+      "id": 1,
+      "name": "Grilled Chicken Breast",
+      "brand": "HealthyLife Demo",
+      "category": "protein",
+      "servingSize": "100 g",
+      "calories": 165,
+      "protein": 31,
+      "carbs": 0,
+      "fats": 3.6,
+      "dietTags": [
+        "high_protein",
+        "gluten_free"
+      ],
+      "allergens": []
+    },
+    {
+      "source": "demo",
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z",
+      "id": 2,
+      "name": "Brown Rice",
+      "brand": "HealthyLife Demo",
+      "category": "grain",
+      "servingSize": "1 cup cooked",
+      "calories": 216,
+      "protein": 5,
+      "carbs": 45,
+      "fats": 1.8,
+      "dietTags": [
+        "vegan",
+        "vegetarian"
+      ],
+      "allergens": []
+    },
+    {
+      "source": "demo",
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z",
+      "id": 3,
+      "name": "Greek Yogurt",
+      "brand": "HealthyLife Demo",
+      "category": "dairy",
+      "servingSize": "170 g",
+      "calories": 100,
+      "protein": 17,
+      "carbs": 6,
+      "fats": 0,
+      "dietTags": [
+        "vegetarian",
+        "high_protein"
+      ],
+      "allergens": [
+        "milk"
+      ]
+    },
+    {
+      "source": "demo",
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z",
+      "id": 4,
+      "name": "Lentil Soup",
+      "brand": "HealthyLife Demo",
+      "category": "prepared",
+      "servingSize": "1 bowl",
+      "calories": 230,
+      "protein": 14,
+      "carbs": 36,
+      "fats": 4,
+      "dietTags": [
+        "vegan",
+        "vegetarian",
+        "high_fiber"
+      ],
+      "allergens": []
+    },
+    {
+      "source": "demo",
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z",
+      "id": 5,
+      "name": "Almond Butter Toast",
+      "brand": "HealthyLife Demo",
+      "category": "snack",
+      "servingSize": "1 slice",
+      "calories": 260,
+      "protein": 9,
+      "carbs": 24,
+      "fats": 15,
+      "dietTags": [
+        "vegetarian"
+      ],
+      "allergens": [
+        "tree_nuts",
+        "gluten"
+      ]
+    }
+  ],
+  "mealTemplates": [
+    {
+      "id": 1,
+      "userId": 2,
+      "name": "Demo Chicken Template",
+      "mealType": "lunch",
+      "items": [
+        {
+          "foodItemId": 1,
+          "name": "Grilled Chicken Breast",
+          "servingMultiplier": 1,
+          "calories": 165,
+          "protein": 31,
+          "carbs": 0,
+          "fats": 3.6
+        }
+      ],
+      "totals": {
+        "calories": 165,
+        "protein": 31,
+        "carbs": 0,
+        "fats": 3.6
+      },
+      "createdAt": "2026-05-25T19:18:23.246Z",
+      "updatedAt": "2026-05-25T19:18:23.246Z"
+    },
+    {
+      "id": 2,
+      "userId": 1,
+      "name": "Demo Protein Meal",
+      "mealType": "lunch",
+      "items": [
+        {
+          "foodItemId": 1,
+          "name": "Grilled Chicken Breast",
+          "servingMultiplier": 1,
+          "calories": 165,
+          "protein": 31,
+          "carbs": 0,
+          "fats": 3.6
+        }
+      ],
+      "totals": {
+        "calories": 165,
+        "protein": 31,
+        "carbs": 0,
+        "fats": 3.6
+      },
+      "createdAt": "2026-05-27T10:16:19.810Z",
+      "updatedAt": "2026-05-27T10:16:19.810Z"
+    }
+  ],
+  "dailyCheckIns": [
+    {
+      "id": 1,
+      "userId": 2,
+      "date": "2026-05-25",
+      "createdAt": "2026-05-25T19:18:23.248Z",
+      "energyLevel": 3,
+      "soreness": 1,
+      "sleepHours": 7,
+      "notes": "demo check",
+      "updatedAt": "2026-05-25T19:18:23.248Z"
+    }
+  ]
+}

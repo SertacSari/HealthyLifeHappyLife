@@ -1,0 +1,85 @@
+ENS 491-492 – Graduation Project
+Final Report
+
+
+
+
+
+Project Title: ……………..
+
+
+
+
+
+
+Group Members: ….
+
+Supervisor(s): …..
+
+
+Date:
+
+
+
+
+ENS 491-492 Final Report must contain the following sections (leave section titles unchanged).  
+You are required to write clearly and concisely: The main body of the report (not including the Title Page, Appendix, and References) must be between 20-25 pages. 
+Project advisor may have additional requirements for the report. 
+
+EXECUTIVE SUMMARY
+Provide a brief but comprehensive summary of your project in approximately 250 words. The executive summary should include the following information:
+The issue or problem that was solved/researched.
+A brief description of the project, including how it addressed the problem.
+Methodology or techniques that were utilized in the project.
+Most important findings and conclusions.
+Do not provide a literature review or citations in this section.
+
+PROBLEM STATEMENT
+State the original (complex) problem, your motivation (why are you interested, what did you intend to achieve by attacking this problem) and goals in comparison with the literature (i.e., what has already been done/achieved prior to this project). 
+Objectives/Tasks
+List the objectives/tasks of your project and corresponding intended results for each objective/task.
+Realistic Constraints
+Describe here the realistic constraints (such as economic, environmental, health-safety, manufacturability, etc.) that affected this project and how you addressed them. Describe also if your project had to satisfy specific engineering/scientific standards or codes of the field of specialty.
+
+METHODOLOGY
+Describe in detail methods/techniques used in reaching the results. Depending on the project, methodology could include modelling, simulation, experiments, etc. You may have 2-5 pages in this section.
+
+RESULTS & DISCUSSION
+Give detailed description of the results/achievements including the information:
+To what extent the initial objectives were realized? 
+How they differed from the initial objectives?
+Is this project successfully completed? 
+Did the project have meaningful contribution to previous state-of-art? 
+What is the estimated carbon footprint of the proposed solution (e.g., kg CO₂ eq per functional unit) and how does it compare with conventional alternatives?
+How does the proposed solution perform in terms of economic feasibility when considering cost, supply chain efficiency, and circularity aspects (e.g., reuse, recycling, resource efficiency)?
+
+
+IMPACT
+Describe the scientific, technological or socio-economic impacts of your achievements. 
+Highlight (if any) innovative and commercial/entrepreneurial aspects of the project. 
+Is there any Freedom-to-Use (FTU) issues? 
+What are the environmental and sustainability impacts of the proposed solution (e.g., carbon footprint reduction, energy efficiency, resource utilization)?
+How does the solution contribute to circularity and sustainable engineering practices?
+
+ETHICAL ISSUES
+In this section, you are required to identify (if any) ethical aspects of your project/solution. For instance, are there possible legal/ethical consequences of the solution? Some examples are given below:
+products implicitly using patent protected designs/concepts; 
+materials that have better appearance but are toxic
+under design for profit
+products for secret survey of personal private life
+solutions that may have negative affect on health)?
+
+ If there aren’t any, you need to still keep this section and state that there are no ethical issues.
+
+PROJECT MANAGEMENT
+Initial and final project plans. How, during implementation, project plan has changed and why. What have you learnt in terms of managing your project?
+
+CONCLUSION AND FUTURE WORK
+Briefly discuss the most important results/findings of your project. Point out any limitations for your study and conclusions. What are the logical next steps of your project? Provide a short discussion on where the project could go next, if you or other students continued the work. How can the solution be further improved in terms of sustainability, cost efficiency, and real-world implementation?
+
+
+APPENDIX
+Provide, if necessary, additional material such as source code, CAD drawings, proofs of results, etc.
+
+REFERENCES
+Include all the references you used in your work. You can use any referencing style, but you should be consistent in formatting your references. 

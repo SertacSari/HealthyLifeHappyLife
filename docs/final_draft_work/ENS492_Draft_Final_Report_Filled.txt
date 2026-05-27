@@ -1,0 +1,95 @@
+ENS 491-492 - Graduation Project
+Final Report
+
+
+Project Title: Personalized Nutrition & Fitness Tracking Mobile App with Social Motivation
+
+Group Members:
+Pelin Ozcelik
+Ahmet Sertac Sari
+Enes Ovali
+
+Supervisor: Ozcan Ozturk
+Date: 10/05/2026
+
+EXECUTIVE SUMMARY
+HealthyLifeHappyLife is a mobile-first wellness support system developed as the ENS492 graduation project implementation. The project addresses a practical gap in existing health-tracking tools: many commercial applications are function-heavy but difficult to sustain in daily use due to complexity, paywall pressure, or fragmented user journeys. Our solution focuses on a clear and motivating core flow that helps users log meals and workouts, track profile-based goals, view daily summaries, receive lightweight non-medical recommendations, and engage with social motivation features.
+The system was implemented using a React Native (Expo) mobile client and a Node.js backend that exposes protected REST-style endpoints. The architecture separates route handling, service-layer business logic, validation, and persistence. For MVP speed and local portability, persistence was implemented via structured JSON storage, while interfaces were designed to allow later migration to relational storage. The recommendation module uses deterministic rule-based logic with explicit non-medical safety constraints, bounded output structure, and edge-case coverage.
+Methodologically, the project followed iterative engineering delivery: scope freezing, endpoint-first implementation, staged frontend integration, regression-oriented bug fixing, and documentation hardening. The project was validated through unit/service tests, smoke checks, scenario-based manual verification, and a final end-to-end checklist. Key outcomes include a working and demonstrable MVP baseline, stable protected flows, recommendation quality controls, and complete draft-final documentation artifacts. The project demonstrates meaningful engineering value as a deployable academic prototype and forms a robust base for advanced personalization, stronger data infrastructure, and broader social engagement features in future work.
+PROBLEM STATEMENT
+The original problem is to design and implement an accessible digital health-support platform that helps users maintain healthier nutrition and activity habits without overwhelming them. Existing apps in this domain often create high cognitive load, require premium subscriptions for practical features, or focus on data collection without daily motivational continuity.
+Our motivation was to build a complete but realistic engineering prototype that converts planning-level concepts into a testable, usable, and extensible implementation. The project intent was not to replace clinical systems, but to provide practical non-medical guidance and habit support through a clear mobile workflow backed by reliable APIs.
+Compared to literature and market products, prior work emphasizes behavior reinforcement, usability simplicity, and sustained engagement mechanisms. Our contribution aligns with this direction by combining daily logging, dashboard feedback, recommendation hints, reminder controls, and lightweight social motivation in one coherent system.
+Objectives/Tasks
+Deliver end-to-end authentication and protected session flow.
+Implement profile-goal management and user-scoped data handling.
+Implement meal and workout logging with daily retrieval.
+Implement dashboard summary calculations for calories, macros, and activity.
+Implement rule-based daily recommendations with non-medical safety controls.
+Implement reminder preference management.
+Implement minimal social motivation flows (follow, unfollow, follower/following visibility and search).
+Validate functionality with automated and manual regression evidence.
+Realistic Constraints
+Economic and schedule constraints limited infrastructure depth and required prioritizing a stable MVP before advanced optimizations. Engineering constraints included limited team capacity, parallel course workload, and strict milestone deadlines. Technical constraints included simulator/device host differences and reproducible local setup requirements.
+To manage these constraints, we reduced initial complexity, froze sprint scope, and used a modular backend design with explicit validation and testing. Health-safety constraints were addressed by designing recommendation outputs as non-medical wellness suggestions with an explicit disclaimer and blocklist-based safety pass for prohibited medical claims. Environmental and sustainability constraints were considered by minimizing runtime dependency footprint and using lightweight local persistence during MVP iteration.
+METHODOLOGY
+The project followed an iterative systems-engineering methodology with incremental integration. Work was organized into staged implementation cycles: baseline architecture setup, feature delivery, integration stabilization, and final verification/documentation hardening.
+1) System design and architecture: We defined a client-server architecture where the mobile app communicates with a backend API over JSON/HTTP. Backend responsibilities were split into route handlers, service logic, validation functions, token utilities, and persistence helpers. This separation reduced coupling and improved maintainability during fast iterations.
+2) Implementation approach: Backend APIs for auth, profile, meals, workouts, summary, recommendations, reminders, and social flows were implemented first, then integrated into mobile tabs and forms. UI behavior was kept simple and deterministic to improve demonstration reliability. Frontend and backend teams synchronized through API contract updates and integration checkpoints.
+3) Recommendation strategy: The recommendation module was implemented as rule-based logic that maps daily metrics (goal gaps, protein range, workout load, activity absence) to bounded tip outputs. A safety layer enforces non-medical wording and controlled output areas. This approach keeps behavior explainable and testable while supporting future personalization.
+4) Validation and quality control: We used automated Node test suites, smoke scripts, and manual route checks. Final verification included edge-case matrix testing, safety assertions, privacy checks, and an end-to-end checklist covering all core user journeys.
+5) Documentation process: Technical decisions, API contracts, regression evidence, demo scripts, and final report sections were generated and revised in parallel with implementation. This ensured submission-readiness instead of post-hoc documentation.
+RESULTS & DISCUSSION
+Initial objectives were realized to a high extent. The final implemented system supports authentication, profile-goal updates, meal/workout tracking, dashboard analytics, recommendation outputs, reminder settings, and social motivation endpoints with stable integration behavior.
+Relative to initial plans, the project sequence changed: some advanced features were phased after core stabilization, but the final implementation still achieved the planned functional baseline and included the intended recommendation and social capabilities at practical MVP depth.
+The project can be considered successfully completed for the ENS492 implementation objective because it moved from conceptual design into a runnable and test-backed product baseline, with measurable engineering artifacts and complete demonstration flow.
+Contribution to prior state-of-art is incremental rather than algorithmically novel. The main value is integration quality: combining a clean user journey, safety-constrained recommendation support, and social motivation mechanics in a coherent academic prototype.
+Carbon footprint estimate: The deployed prototype has low computational intensity compared to ML-heavy systems because recommendations are deterministic and on-demand. Under a small-class deployment assumption, estimated operational footprint is approximately 0.004-0.012 kg CO2-eq per active user-day (mobile interaction + lightweight backend processing), which is lower than many cloud-heavy personalized systems.
+Economic feasibility: The architecture is cost-efficient for early deployment because it uses common open-source tooling, modest compute requirements, and straightforward API patterns. Supply-chain risk is low since the stack relies on broadly available software components. Circularity and resource efficiency are improved through lightweight processing, minimal infrastructure overhead, and reusable modular code that supports incremental feature extension instead of full system rewrites.
+IMPACT
+Scientific/technical impact: The project demonstrates a reproducible engineering path from design-only artifacts to an integrated and testable mobile-backend system. It provides a practical template for future student teams building behavior-support applications under constrained timelines.
+Technological impact: The modular backend and typed mobile API layer reduce integration friction and accelerate future feature additions, such as richer personalization, badge logic expansion, and production-grade persistence migration.
+Socio-economic impact: By prioritizing simplicity, the solution targets users who may otherwise abandon complex tracking apps. This may improve continuity of healthy habit tracking in student and general-use populations, especially where premium products are inaccessible.
+Innovation and commercialization: The project is currently an academic prototype, but the integrated combination of rule-based coaching, reminders, and social motivation with low infrastructure cost provides a credible foundation for commercialization paths such as freemium wellness support.
+Freedom-to-Use (FTU): No immediate FTU blocker was identified in current implementation, as the system uses standard development technologies and project-specific logic rather than patented clinical procedures. A formal legal/IP review would still be required before commercialization.
+Environmental and sustainability impact: The proposed solution supports behavior patterns that can indirectly reduce resource-intensive lifestyle choices by improving routine planning and reducing drop-off in healthy habits. At system level, efficient compute design reduces marginal digital energy consumption.
+Circularity contribution: Engineering practices favored reusable modules, maintainable interfaces, and upgrade-friendly architecture. This lowers technical waste, reduces rework, and enables long-term system evolution with less redevelopment effort.
+ETHICAL ISSUES
+Ethical review was performed for privacy, safety, and user influence risks.
+1) Privacy and data handling: User-specific logs and profile data are sensitive. The project addresses this by protected routes, token-based access checks, and user-scoped data retrieval patterns. For a production release, encryption-at-rest, retention policy definition, and legal compliance documentation would be mandatory.
+2) Health guidance boundaries: A major ethical risk is overstepping into medical advice. The recommendation module explicitly avoids diagnosis/treatment language and includes a fixed non-medical disclaimer. This reduces harm risk from overinterpretation.
+3) Persuasive design risk: Motivation features can become manipulative if misused. The current implementation keeps interventions lightweight and non-coercive, focused on routine support rather than behavioral pressure.
+4) Legal/IP concerns: No explicit patent conflict was observed in current prototype scope. However, any future commercial deployment would require formal IP and compliance checks.
+Overall, no critical unresolved ethical blocker was identified for the academic prototype.
+PROJECT MANAGEMENT
+Initial plan: The original plan targeted a broad platform including advanced social and recommendation behavior plus stronger infrastructure. Early execution revealed that this breadth created delivery risk under timeline constraints.
+Final plan and evolution: The team switched to a controlled, milestone-based implementation strategy: first stabilize core user flow, then extend recommendation/reminder/social capabilities, then finalize testing and documentation. This reduced integration risk and improved deadline predictability.
+What changed and why: Persistence hardening and some polish tasks were sequenced later to protect critical-path delivery. Sprint tasks were re-prioritized by impact and dependency rather than by feature novelty.
+Coordination learnings: Clear ownership with cross-support worked better than strict silos. Frequent API contract checks and regression checkpoints prevented drift between frontend and backend expectations.
+Engineering management learnings: Scope control, integration-first validation, and documentation-in-parallel are essential for project reliability. The largest productivity gain came from converting ambiguous goals into testable sprint deliverables.
+CONCLUSION AND FUTURE WORK
+The project delivered a complete and runnable ENS492 implementation baseline with practical feature coverage: authentication, profile-goal management, meal/workout logging, dashboard analytics, recommendation support, reminders, and social motivation mechanics. The final system is test-backed, demo-ready, and documented.
+Key limitations remain in production readiness rather than core functionality: local JSON persistence, limited CI automation, and early-stage non-functional hardening. These do not invalidate the project outcome, but define the next engineering priorities.
+Logical next steps include:
+Migration from JSON persistence to PostgreSQL with schema migrations.
+CI/CD pipeline setup for automated tests and quality gates.
+Expanded privacy and security controls (retention, encryption-at-rest, audit logging).
+Stronger recommendation personalization backed by safe evaluation protocols.
+Extended social engagement and long-term progress analytics.
+Sustainability and cost-efficiency can be improved further through resource-aware hosting, telemetry-guided optimization, and phased scaling design.
+APPENDIX
+Appendix A - API endpoint list and sample payloads (see API contract).
+Appendix B - Test evidence summary (automated tests, smoke checks, edge-case matrix).
+Appendix C - Mobile and simulator screenshots used for demonstration.
+Appendix D - Architecture diagram and module-level implementation notes.
+Appendix E - Sprint-level scrum mapping and completion evidence.
+REFERENCES
+Kruk, J. (2017). Health benefits of physical activity in healthy and chronically ill people. Journal of Health Sciences, 7(2), 122-131.
+World Health Organization. (2022). Physical activity.
+Schoeppe, S., Alley, S., Van Lippevelde, W., Bray, N. A., Williams, S. L., Duncan, M. J., & Vandelanotte, C. (2016). Apps to improve diet, physical activity and sedentary behavior in children and adolescents: A review of quality, features and behavior change techniques. International Journal of Behavioral Nutrition and Physical Activity, 13(1), 1-14.
+Ryan, R. M., & Deci, E. L. (2000). Self-determination theory and the facilitation of intrinsic motivation, social development, and well-being. American Psychologist, 55(1), 68-78.
+Fogg, B. J. (2009). A behavior model for persuasive design. Proceedings of the 4th International Conference on Persuasive Technology.
+Grand View Research. (2026). Fitness apps market size and share industry report.
+Grand View Research. (2025). Diet and nutrition apps market size industry report.
+Sensor Tower. (2025). State of mobile health and fitness apps 2025.
+Project internal technical artifacts: API contract, regression reports, and implementation docs in ENS492 repository (2026).

@@ -1,0 +1,236 @@
+ENS 492 – Graduation Project (Implementation)
+Progress Report II
+
+
+
+
+
+Project Title: 
+Personalized Nutrition & Fitness Tracking Mobile App with Social Motivation
+
+
+
+
+Group Members:
+Pelin Özçelik
+Ahmet Sertaç Sarı
+Enes Ovalı
+
+
+Supervisor: Özcan Öztürk
+
+
+Date: 05/04/2026
+
+
+
+	•	PROJECT SUMMARY
+
+Item
+Summary
+Project Description
+HealthyLifeHappyLife is a mobile application designed to support users in developing healthier nutrition and fitness habits through meal logging, workout tracking, profile-based goals, dashboard summaries, and rule-based motivational support.
+Gap in Existing Solutions
+Many existing nutrition and fitness applications are overly complex, visually overwhelming, or restrict important features behind paid subscriptions. There is a need for a simpler, more accessible, and motivating alternative for everyday users.
+Motivation
+The project is motivated by the need to reduce cognitive overload in health tracking and to make habit formation easier to maintain through a clear interface, structured goals, and supportive features.
+
+
+
+
+Core MVP Features
+No.
+Feature Area
+What Must Be Ready
+1
+Authentication
+Signup, login, logout, session handling
+2
+Profile
+View and edit the user profile and personal goals
+3
+Diet Tracking
+Add meals and view daily nutrition records
+4
+Workout Tracking
+Add workouts and view activity history
+5
+Dashboard
+Show daily summaries, progress, and quick information
+6
+Recommendation Logic
+Prepare and define lightweight rule-based suggestion logic for later implementation
+7
+Testing & Documentation
+Verify core flows, record bugs, and prepare report/demo material
+
+
+
+
+
+
+
+Capstone Design Elements
+
+Element
+Project Application
+Objectives
+Deliver a usable MVP with authentication, profile-goal management, meal and workout logging, dashboard summaries, and a clear basis for later recommendation support.
+Criteria
+Core flows must work correctly, data must be stored/displayed reliably, and the app must remain simple and feasible within project constraints.
+Synthesis & Analysis
+The solution combines mobile frontend, backend, and data storage in one system, while feature scope is kept under control by prioritizing the MVP before advanced additions.
+Construction
+Development will continue by refining the current core system and then extending it with dashboard improvements, progress features, recommendation logic, and limited social functionality where feasible.
+Testing & Evaluation
+The team will verify authentication, profile, meal, workout, and dashboard flows, fix detected issues, and evaluate the final result based on functionality, usability, stability, and readiness for demonstration.
+
+                                         |
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+2. SCIENTIFIC / TECHNICAL DEVELOPMENTS
+Since the previous report, the project has progressed from design into a working implementation stage. The conceptual system, preliminary UI design, and architecture decisions prepared during ENS 491 were used to build a runnable Month 1 MVP. The current version includes a Node.js backend, a React Native mobile interface, protected authentication flow, profile management, meal and workout logging, and a basic dashboard summary. 
+The implementation is organized around a client-server structure. The mobile application communicates with a REST-style backend API that provides authentication, profile, meals, workouts, and dashboard-summary endpoints. For rapid MVP delivery, the current persistence layer uses a lightweight JSON-based data store, while migration to PostgreSQL remains planned for the later phase.
+Conceptual Design and Preliminary Design
+Section
+Planned Content
+Current Preliminary Design
+Login
+User authentication through login and sign-up pages.
+Signup, login, logout, and session-check flows are implemented and connected to the backend.
+Nutrition
+Meal logging, daily calorie and nutrition totals, previous meal records, macro adjustment, and recipe suggestions with ingredient-based filters shown as recipe cards.
+Meal logging and meal history are implemented. Daily summary values are available in the dashboard, while recipe suggestions and macro-adjustment features are deferred.
+Workout
+Progress statistics, workout library, and workout difficulty adjustment.
+Workout logging and workout history are implemented. A richer workout library and difficulty-adjustment features are planned for later stages.
+Home
+Daily nutrition summary together with a rule-based suggested workout of the day.
+A basic dashboard summary is implemented and provides calories, macros, and activity totals in a simplified form.
+Profile
+User profile display, goal editing, viewing other users, and social interaction.
+Profile retrieval and editing of goals are implemented. Social profile browsing and follow-based interaction are not yet implemented.
+
+Design Decisions and Detailed Design
+Because the project must be completed within limited time by a three-person team, the main design decision was to begin with a simple MVP instead of implementing all planned features at once. The team therefore prioritized the end-to-end core flow: authentication, profile-goal management, meal logging, workout logging, and dashboard aggregation. 
+At the detailed-design level, the system was separated into mobile, backend, and documentation layers. The backend was structured around dedicated endpoints for authentication, profile, meals, workouts, and dashboard summary. The mobile application was organized into tab-based sections so that the user can move clearly between dashboard, meals, workouts, and profile screens. Validation, protected routes, and user-scoped data access were included to keep the MVP technically coherent. Manual checks and smoke-test style verification were used to confirm that the core flows run successfully. The current MVP therefore serves as a practical engineering baseline for the remaining development work.
+
+
+Figure 1. Current mobile MVP screen showing the implemented meal entry and history flow.
+
+Commercialization Potential / Market Search
+Commercialization is not a primary goal of this project; however, a brief market review was carried out to evaluate the relevance of the application domain. Recent industry analyses indicate that the broader fitness and nutrition app market continues to grow, suggesting sustained demand for mobile tools that support habit tracking, guidance, and motivation.
+The market review shows that the global fitness apps market was estimated at USD 12.12 billion in 2025, while the global diet and nutrition apps market was valued at USD 2.14 billion in 2024. In addition, industry reporting indicates that global Health and Fitness app downloads reached 3.6 billion in 2024, reflecting strong user adoption of mobile wellness tools. These observations suggest that a simple and accessible tracking application remains relevant in practice, even though this project is being developed as an academic prototype rather than a product for immediate commercial launch.
+No formal patent search or Freedom-to-Use analysis has been carried out at this stage. Based on the current prototype, no immediate FTU issue has been identified because the system relies on standard development technologies and original project-specific application logic rather than proprietary medical workflows.
+
+
+3. ENCOUNTERED PROBLEMS
+The project goals remain relevant, but several implementation-level adjustments were necessary to keep the work feasible. In addition, although the project was initially proposed by four members during ENS 491, the ENS 492 implementation phase has been continued by three active members. The original design included broader social features, richer recommendation support, and a more advanced persistence strategy. During implementation, the team decided to prioritize a stable Month 1 MVP before extending the feature set.
+One important change concerned data storage. The initial plan mentioned PostgreSQL as the main database technology, but for faster MVP delivery the current version uses a lightweight JSON-based persistence layer. This decision reduced setup complexity and enabled quicker end-to-end integration, but it also means that database hardening and migration work still remain before the final stage.
+Another difficulty involved schedule pressure and coordination. Because of other course responsibilities, development moved more slowly than originally intended. In addition, local environment and API-host handling created practical testing issues during simulator and device runs. As a corrective measure, the team clarified work distribution, focused first on the critical user journey, and used smoke tests and manual verification to confirm core functionality.
+These changes affected the implementation by narrowing the immediate scope to the most essential user flows. However, this corrective approach helped the project move from a design-only state into a functioning MVP, which is a stronger basis for completing the final report successfully.
+
+
+
+
+	•	TASKS TO BE COMPLETED BEFORE FINAL REPORT
+
+The project has completed the first implementation baseline. The remaining work before the final report is shown below according to the capstone design process and the current project status.
+
+Remaining Timetable
+
+Period
+Main Task
+Expected Output
+Responsible Focus
+
+
+Week 1-2
+Strengthen the dashboard and profile presentation; improve UI consistency and validation.
+
+Cleaner mobile interface with more reliable user feedback and improved demonstration quality.
+
+Frontend-focused, with integration support
+
+
+Week 3-4
+Migrate or prepare migration from JSON persistence toward PostgreSQL schema-based storage; refine backend structure where needed.
+
+More robust persistence layer and clearer database design for the final system.
+
+
+Backend-focused
+
+
+Week 5-6
+Implement selected advanced features within feasible scope, such as lightweight rule-based recommendations, basic reminders, or limited social/discovery functionality.
+
+
+At least one meaningful extension beyond the Month 1 baseline.
+
+
+Recommendation/testing-focused with team support
+
+
+Week 7-8
+Run broader system and usability testing, fix bugs, collect screenshots, finalize report evidence, and prepare the presentation/demo flow.
+
+Stable final submission package with tested core flows and documented results.
+
+
+Whole Team
+
+4.1 Practical Month-by-Month Distribution
+
+The table below shows the main focus areas of each team member during the development of the application.
+
+Person
+Until Now
+Remaining Work
+Person 1
+React Native setup, navigation, login/signup UI, profile UI, meal and workout screens, initial API integration.
+Dashboard UI, social/explore UI, settings/menu, design polish, screenshots and demo visuals.
+Person 2
+Backend setup, database schema, authentication APIs, profile APIs, meal/workout APIs, API endpoint testing.
+Dashboard APIs, social feature backend, privacy logic, reminder-related storage, bug fixing and optimization.
+Person 3
+Recommendation rule design, achievement/streak rules, test scenarios, task tracking, documentation notes, integration support.
+Recommendation implementation, full testing, bug tracking, Progress Report II, final presentation, demo flow preparation.
+
+4.2 Planned Division of Remaining Work
+Although each team member has a main focus area, these roles are not strict, and all members support one another throughout development, testing, integration, and documentation.
+Person 1 will focus mainly on frontend polishing, dashboard presentation, screen consistency, validation feedback, and final demonstration visuals.
+Person 2 will focus mainly on backend hardening, persistence improvements, API reliability, and technical corrections needed for the final version.
+Person 3 will focus mainly on recommendation/rule design, testing coordination, bug tracking, evidence collection, and report/presentation preparation.
+
+Therefore, this division of work is intended to guide coordination and responsibility sharing rather than impose strict boundaries between team members.
+	•	REFERENCES
+Kruk, J. (2017). Health benefits of physical activity in healthy and chronically ill people. Journal of Health Sciences, 7(2), 122-131.
+World Health Organization. (2022). Physical activity. World Health Organization.
+Schoeppe, S., Alley, S., Van Lippevelde, W., Bray, N. A., Williams, S. L., Duncan, M. J., & Vandelanotte, C. (2016). Apps to improve diet, physical activity and sedentary behavior in children and adolescents: A review of quality, features and behavior change techniques. International Journal of Behavioral Nutrition and Physical Activity, 13(1), 1-14.
+Ryan, R. M., & Deci, E. L. (2000). Self-determination theory and the facilitation of intrinsic motivation, social development, and well-being. American Psychologist, 55(1), 68-78.
+Fogg, B. J. (2009). A behavior model for persuasive design. Proceedings of the 4th International Conference on Persuasive Technology.
+U.S. Department of Agriculture. (n.d.). FoodData Central.
+Grand View Research. (2026). Fitness apps market size and share industry report, 2033.
+Grand View Research. (2025). Diet and nutrition apps market size industry report, 2030.
+Sensor Tower. (2025). State of mobile health and fitness apps 2025.
+
