@@ -68,6 +68,8 @@ import type {
 type Tab = "dashboard" | "meals" | "library" | "templates" | "workouts" | "profile" | "coach" | "social" | "weekly";
 type AuthMode = "register" | "login";
 type ReminderFrequency = ReminderSettings["frequency"];
+type SocialMode = "Meals" | "Workouts";
+type ManualWorkoutStep = "list" | "detail";
 type OnboardingData = {
   age: string;
   gender: string;
@@ -116,7 +118,15 @@ const WORKOUT_EXERCISES = [
   { name: "Bench Press", emoji: "💪", type: "Strength", cue: "Strong push", defaultKg: "30", defaultReps: "8", defaultTries: "3" },
   { name: "Deadlift", emoji: "⛰️", type: "Strength", cue: "Mountain pull", defaultKg: "50", defaultReps: "5", defaultTries: "3" },
   { name: "Row", emoji: "🚣", type: "Strength", cue: "Bosphorus rhythm", defaultKg: "25", defaultReps: "10", defaultTries: "3" },
+  { name: "Shoulder Press", emoji: "🏔️", type: "Strength", cue: "Tall posture", defaultKg: "20", defaultReps: "10", defaultTries: "3" },
+  { name: "Lat Pulldown", emoji: "🪢", type: "Strength", cue: "Controlled pull", defaultKg: "35", defaultReps: "10", defaultTries: "3" },
+  { name: "Lunge", emoji: "🥾", type: "Strength", cue: "Step steady", defaultKg: "20", defaultReps: "10", defaultTries: "3" },
+  { name: "Romanian Deadlift", emoji: "🌲", type: "Strength", cue: "Hinge clean", defaultKg: "35", defaultReps: "8", defaultTries: "3" },
+  { name: "Biceps Curl", emoji: "💪", type: "Strength", cue: "Smooth reps", defaultKg: "12", defaultReps: "12", defaultTries: "3" },
+  { name: "Triceps Dip", emoji: "🪑", type: "Strength", cue: "Strong finish", defaultKg: "0", defaultReps: "10", defaultTries: "3" },
+  { name: "HIIT Cardio", emoji: "🔥", type: "Cardio", cue: "Short and sharp", defaultKg: "0", defaultReps: "20", defaultTries: "1" },
   { name: "Hill Walk", emoji: "🌿", type: "Recovery", cue: "Yayla tempo", defaultKg: "0", defaultReps: "30", defaultTries: "1" },
+  { name: "Morning Yoga", emoji: "🧘", type: "Recovery", cue: "Easy mobility", defaultKg: "0", defaultReps: "30", defaultTries: "1" },
   { name: "Plank", emoji: "🧘", type: "Core", cue: "Quiet focus", defaultKg: "0", defaultReps: "45", defaultTries: "3" }
 ];
 const WORKOUT_PROGRAM_TEMPLATES = [
@@ -466,6 +476,7 @@ export default function App() {
   const [workoutDuration, setWorkoutDuration] = useState("60");
   const [workoutCalories, setWorkoutCalories] = useState("350");
   const [workoutMode, setWorkoutMode] = useState<"Templates" | "Manual">("Templates");
+  const [workoutView, setWorkoutView] = useState<ManualWorkoutStep>("list");
   const [workoutTemplates, setWorkoutTemplates] = useState(WORKOUT_PROGRAM_TEMPLATES);
 
   const [profileName, setProfileName] = useState("");
@@ -492,7 +503,9 @@ export default function App() {
   const [savedCoachPlan, setSavedCoachPlan] = useState("");
   const [weeklyReview, setWeeklyReview] = useState<CoachWeeklyReview | null>(null);
   const [socialFeed, setSocialFeed] = useState<SocialPost[]>([]);
+  const [socialMode, setSocialMode] = useState<SocialMode>("Meals");
   const [selectedShareMealId, setSelectedShareMealId] = useState<number | null>(null);
+  const [selectedShareWorkoutName, setSelectedShareWorkoutName] = useState(WORKOUT_PROGRAM_TEMPLATES[0].name);
   const [sharedWorkoutPrograms, setSharedWorkoutPrograms] = useState(DEMO_SOCIAL_PROGRAMS);
   const [waterMl, setWaterMl] = useState(0);
   const [mealTemplates, setMealTemplates] = useState<MealTemplate[]>([]);
@@ -679,10 +692,19 @@ export default function App() {
       return;
     }
     try {
-      setStatus("Searching FatSecret foods...");
+      setStatus("Searching local food database first...");
+      const localResults = await listFoodItems(token, { query: foodSearchQuery });
+      setLibraryQuery(foodSearchQuery);
+      setLibraryFoods(localResults);
+      if (localResults.length > 0) {
+        setFoodSearchResults([]);
+        setStatus(`Found ${localResults.length} local saved foods. FatSecret stays as fallback.`);
+        return;
+      }
+      setStatus("No local foods found. Searching FatSecret fallback...");
       const results = await searchNutritionFoods(token, foodSearchQuery);
       setFoodSearchResults(results.foods);
-      setStatus(`Found ${results.totalResults} FatSecret matches`);
+      setStatus(`Found ${results.totalResults} FatSecret fallback matches`);
     } catch (error) {
       setStatus(String(error));
     }
@@ -1275,6 +1297,7 @@ export default function App() {
     setWorkoutReps(exercise.defaultReps);
     setWorkoutTries(exercise.defaultTries);
     setWorkoutDuration(exercise.name === "Hill Walk" ? exercise.defaultReps : workoutDuration);
+    setWorkoutView("detail");
   }
 
   function selectWorkoutProgram(program: (typeof WORKOUT_PROGRAM_TEMPLATES)[number]) {
@@ -1284,6 +1307,7 @@ export default function App() {
     setWorkoutReps(program.duration);
     setWorkoutTries(String(program.exercises.length));
     setWorkoutMode("Templates");
+    setWorkoutView("detail");
     setStatus(`Selected ${program.name}`);
   }
 
@@ -1305,31 +1329,36 @@ export default function App() {
     setStatus(`${nextTemplate.name} saved as a workout template`);
   }
 
-  async function shareWorkoutProgram(program = workoutTemplates[0]) {
+  async function shareWorkoutProgram(program?: (typeof WORKOUT_PROGRAM_TEMPLATES)[number]) {
     if (!token) {
       setStatus("Login first");
+      return;
+    }
+    const selectedProgram = program || workoutTemplates.find((item) => item.name === selectedShareWorkoutName);
+    if (!selectedProgram) {
+      setStatus("Choose a workout program first.");
       return;
     }
     try {
       setStatus("Sharing workout program...");
       setSharedWorkoutPrograms((current) => [
         {
-          title: `You shared ${program.name}`,
+          title: `You shared ${selectedProgram.name}`,
           meta: "just now · public · workout program",
-          body: `${program.note} Plan: ${program.exercises.join(", ")}`
+          body: `${selectedProgram.note} Plan: ${selectedProgram.exercises.join(", ")}`
         },
         ...current
       ]);
       await createSocialPost(token, {
         meal: {
-          name: `${program.emoji} ${program.name} workout program`,
+          name: `${selectedProgram.emoji} ${selectedProgram.name} workout program`,
           calories: 1,
           protein: 0,
           carbs: 0,
           fats: 0,
           loggedAt: loggedAtForDate(activeDate)
         },
-        caption: `${program.note} Plan: ${program.exercises.join(", ")}`,
+        caption: `${selectedProgram.note} Plan: ${selectedProgram.exercises.join(", ")}`,
         visibility: "public",
         privacy: { hideCalories: true, hideMeasurements: true }
       });
@@ -1901,7 +1930,7 @@ export default function App() {
           {meals.length === 0 ? (
             <View style={styles.noticeBox}>
               <Text style={styles.itemTitle}>No meals logged for {activeDate}</Text>
-              <Text style={styles.small}>Start with a quick manual entry, search FatSecret, or open the food library.</Text>
+              <Text style={styles.small}>Start with the local food library, then use manual entry or FatSecret fallback when needed.</Text>
             </View>
           ) : (
             meals.map((item) => (
@@ -1993,7 +2022,8 @@ export default function App() {
           <TouchableOpacity style={styles.fullButton} onPress={addMealAndRefresh}>
             <Text style={styles.buttonText}>Save Meal</Text>
           </TouchableOpacity>
-          <Text style={styles.subsection}>Search Nutrition Database</Text>
+          <Text style={styles.subsection}>Local-first Nutrition Search</Text>
+          <Text style={styles.small}>Search checks saved foods first. FatSecret is only used when the local database has no matches.</Text>
           <View style={styles.row}>
             <TextInput style={[styles.input, styles.searchInput]} value={foodSearchQuery} onChangeText={setFoodSearchQuery} placeholder="Search foods" />
             <TouchableOpacity style={styles.compactButton} onPress={searchFoodsForMeal}>
@@ -2046,7 +2076,7 @@ export default function App() {
     const visibleFoods = libraryFoods.filter(foodItemPassesLibraryFilter);
     return (
       <>
-      {renderScreenHeader("Food Library", "Search saved foods and add them fast", "R", () => setTab("meals"))}
+      {renderScreenHeader("Food Library", "Search the local demo database first", "🍽️", () => setTab("meals"))}
       <View style={styles.card}>
         <View style={styles.row}>
           <TextInput
@@ -2065,7 +2095,7 @@ export default function App() {
           <View style={styles.noticeBox}>
             <Text style={styles.itemTitle}>Ready for food search</Text>
             <Text style={styles.small}>
-              Search your saved food library. For broader nutrition database search or manual entry, use the Meals tab.
+              Search the local food database seeded for the demo. Online FatSecret search remains available in Meals if credentials are configured.
             </Text>
           </View>
         ) : (
@@ -2241,7 +2271,25 @@ export default function App() {
   function renderSocial() {
     return (
       <>
-        {renderScreenHeader("Social", "Share meals with privacy controls", "S", loadSocialFeed)}
+        {renderScreenHeader("Social", "Share meals and workout programs", "👥", loadSocialFeed)}
+        <View style={styles.modeSwitch}>
+          {(["Meals", "Workouts"] as const).map((mode) => {
+            const isActive = socialMode === mode;
+            return (
+              <TouchableOpacity
+                key={mode}
+                style={[styles.modeSwitchButton, isActive ? styles.modeSwitchButtonActive : null]}
+                onPress={() => setSocialMode(mode)}
+              >
+                <Text style={[styles.modeSwitchText, isActive ? styles.modeSwitchTextActive : null]}>
+                  {mode === "Meals" ? "🍽️ Meals" : "🏋️ Workouts"}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+        {socialMode === "Meals" ? (
+        <>
         <View style={styles.card}>
           <View style={styles.headerRow}>
             <Text style={styles.section}>Share</Text>
@@ -2271,25 +2319,9 @@ export default function App() {
           <TouchableOpacity style={styles.fullButton} onPress={shareSelectedMeal}>
             <Text style={styles.buttonText}>Share Selected Meal</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.secondaryButton} onPress={() => shareWorkoutProgram(workoutTemplates[0])}>
-            <Text style={styles.secondaryButtonText}>Share Workout Program</Text>
-          </TouchableOpacity>
           <Text style={styles.small}>
-            Shared meals and workout programs respect visibility and privacy controls. Copying adds meals to your log.
+            Shared meals respect visibility and privacy controls. Copying adds meals to your log.
           </Text>
-        </View>
-
-        <View style={styles.card}>
-          <Text style={styles.section}>Live Community</Text>
-          <View style={styles.resultsBlock}>
-            {sharedWorkoutPrograms.map((post) => (
-              <View style={styles.listItem} key={post.title}>
-                <Text style={styles.itemTitle}>{post.title}</Text>
-                <Text style={styles.small}>{post.meta}</Text>
-                <Text style={styles.small}>{post.body}</Text>
-              </View>
-            ))}
-          </View>
         </View>
 
         <View style={styles.card}>
@@ -2325,6 +2357,49 @@ export default function App() {
             </View>
           )}
         </View>
+        </>
+        ) : (
+        <>
+        <View style={styles.card}>
+          <Text style={styles.section}>Choose Workout Program to Share</Text>
+          <View style={styles.workoutPresetList}>
+            {workoutTemplates.map((program) => {
+              const selected = selectedShareWorkoutName === program.name;
+              return (
+                <TouchableOpacity
+                  key={`share-program-${program.name}`}
+                  style={[styles.workoutPresetRow, selected ? styles.workoutPresetRowActive : null]}
+                  onPress={() => setSelectedShareWorkoutName(program.name)}
+                >
+                  <Text style={styles.exerciseEmoji}>{program.emoji}</Text>
+                  <View style={styles.workoutPresetCopy}>
+                    <Text style={[styles.exerciseTitle, selected ? styles.exerciseTitleActive : null]}>{program.name}</Text>
+                    <Text style={[styles.small, selected ? styles.quickMealMetaActive : null]}>
+                      {program.duration} min · {program.exercises.join(", ")}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+          <TouchableOpacity style={styles.fullButton} onPress={() => shareWorkoutProgram()}>
+            <Text style={styles.buttonText}>Share Selected Program</Text>
+          </TouchableOpacity>
+        </View>
+        <View style={styles.card}>
+          <Text style={styles.section}>Workout Community</Text>
+          <View style={styles.resultsBlock}>
+            {sharedWorkoutPrograms.map((post) => (
+              <View style={styles.listItem} key={post.title}>
+                <Text style={styles.itemTitle}>{post.title}</Text>
+                <Text style={styles.small}>{post.meta}</Text>
+                <Text style={styles.small}>{post.body}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+        </>
+        )}
       </>
     );
   }
@@ -2359,7 +2434,10 @@ export default function App() {
             <TouchableOpacity
               key={mode}
               style={[styles.modeSwitchButton, isActive ? styles.modeSwitchButtonActive : null]}
-              onPress={() => setWorkoutMode(mode)}
+              onPress={() => {
+                setWorkoutMode(mode);
+                setWorkoutView(mode === "Manual" ? "list" : "detail");
+              }}
             >
               <Text style={[styles.modeSwitchText, isActive ? styles.modeSwitchTextActive : null]}>
                 {mode === "Templates" ? "▤ Templates" : "✎ Manual"}
@@ -2431,15 +2509,59 @@ export default function App() {
           </>
         ) : (
           <>
-            <Text style={styles.fieldLabel}>Custom movement</Text>
-            <TextInput
-              style={styles.input}
-              value={workoutName}
-              onChangeText={setWorkoutName}
-              placeholder="Custom movement"
-            />
+            {workoutView === "list" ? (
+              <>
+                <Text style={styles.fieldLabel}>Choose movement</Text>
+                <View style={styles.workoutPresetList}>
+                  {WORKOUT_EXERCISES.map((exercise) => (
+                    <TouchableOpacity
+                      key={`manual-${exercise.name}`}
+                      style={styles.workoutPresetRow}
+                      onPress={() => selectWorkoutExercise(exercise)}
+                    >
+                      <Text style={styles.exerciseEmoji}>{exercise.emoji}</Text>
+                      <View style={styles.workoutPresetCopy}>
+                        <Text style={styles.exerciseTitle}>{exercise.name}</Text>
+                        <Text style={styles.small}>
+                          {exercise.cue} · {exercise.type} · default {exercise.defaultKg} kg, {exercise.defaultReps} reps/time, {exercise.defaultTries} sets
+                        </Text>
+                      </View>
+                      <Text style={styles.presetChevron}>›</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                <TouchableOpacity
+                  style={styles.secondaryButton}
+                  onPress={() => {
+                    setWorkoutName("Custom Workout");
+                    setWorkoutKg("0");
+                    setWorkoutReps("10");
+                    setWorkoutTries("3");
+                    setWorkoutDuration("30");
+                    setWorkoutView("detail");
+                  }}
+                >
+                  <Text style={styles.secondaryButtonText}>Create Custom Movement</Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                <TouchableOpacity style={styles.secondaryButton} onPress={() => setWorkoutView("list")}>
+                  <Text style={styles.secondaryButtonText}>Back to Movement List</Text>
+                </TouchableOpacity>
+                <Text style={styles.fieldLabel}>Movement</Text>
+                <TextInput
+                  style={styles.input}
+                  value={workoutName}
+                  onChangeText={setWorkoutName}
+                  placeholder="Custom movement"
+                />
+              </>
+            )}
           </>
         )}
+        {workoutView === "detail" ? (
+        <>
         <View style={styles.row}>
           {renderDigitPicker("Load", workoutKg, setWorkoutKg, 0, 300, 3, " kg")}
           {renderDigitPicker("Reps / time", workoutReps, setWorkoutReps, 0, 999, 3)}
@@ -2459,6 +2581,8 @@ export default function App() {
         <TouchableOpacity style={styles.fullButton} onPress={addWorkoutAndRefresh}>
           <Text style={styles.buttonText}>Save Workout</Text>
         </TouchableOpacity>
+        </>
+        ) : null}
         <Text style={styles.subsection}>Today's Logged Workouts ({workouts.length})</Text>
         {workouts.length === 0 ? (
           <View style={styles.noticeBox}>
