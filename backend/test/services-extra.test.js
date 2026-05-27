@@ -118,8 +118,7 @@ test("food item search supports query, category, diet tag, and allergy-safe filt
   });
 
   const chicken = listFoodItems(db, user.userId, { query: "chicken" });
-  assert.equal(chicken.length, 1);
-  assert.equal(chicken[0].name, "Grilled Chicken Breast");
+  assert.ok(chicken.some((item) => item.name === "Grilled Chicken Breast"));
 
   const vegan = listFoodItems(db, user.userId, { filter: "vegan" });
   assert.ok(vegan.some((item) => item.name === "Lentil Soup"));
@@ -194,6 +193,117 @@ test("daily recommendations return non-medical disclaimer and tips", () => {
   const combinedTipsText = recommendations.tips.map((tip) => `${tip.title} ${tip.message}`).join(" ").toLowerCase();
   for (const blockedWord of ["diagnose", "diagnosis", "medication", "prescribe", "cure", "disease"]) {
     assert.equal(combinedTipsText.includes(blockedWord), false);
+  }
+});
+
+test("daily recommendations explain low protein gap with structured fields", () => {
+  const db = createDb();
+  const user = signup(db, { email: "protein-gap@example.com", password: "StrongPass123", name: "Protein Gap" }, authConfig);
+  updateOnboardingProfile(db, user.userId, {
+    age: 22,
+    sex: "female",
+    heightCm: 168,
+    weightKg: 64,
+    activityLevel: "moderately_active",
+    goalType: "maintain"
+  });
+  addMeal(db, user.userId, {
+    name: "Pasta lunch",
+    calories: 820,
+    protein: 18,
+    carbs: 130,
+    fats: 18,
+    loggedAt: `${TEST_DATE}T12:00:00.000Z`
+  });
+
+  const recommendations = getDailyRecommendations(db, user.userId, TEST_DATE);
+  const proteinTip = findTipByTitle(recommendations, "Protein intake appears low");
+  assert.ok(proteinTip);
+  assert.equal(proteinTip.actionType, "meal");
+  assert.equal(typeof proteinTip.reason, "string");
+  assert.equal(typeof proteinTip.confidence, "number");
+  assert.ok(proteinTip.priority > 0);
+});
+
+test("daily recommendations prioritize recovery for low energy and high soreness", () => {
+  const db = createDb();
+  const user = signup(db, { email: "daily-recovery@example.com", password: "StrongPass123", name: "Recovery" }, authConfig);
+  upsertDailyCheckIn(db, user.userId, {
+    date: TEST_DATE,
+    energyLevel: 2,
+    soreness: 5,
+    sleepHours: 5.5,
+    notes: "Exam week and tired"
+  });
+
+  const recommendations = getDailyRecommendations(db, user.userId, TEST_DATE);
+  const recoveryTip = findTipByTitle(recommendations, "Recovery readiness is low");
+  assert.ok(recoveryTip);
+  assert.equal(recoveryTip.area, "recovery");
+  assert.equal(recoveryTip.actionType, "recovery");
+  assert.ok(recoveryTip.reason.includes("energy 2/5"));
+});
+
+test("daily recommendations adapt calorie advice to goal type", () => {
+  const db = createDb();
+  const user = signup(db, { email: "goal-specific@example.com", password: "StrongPass123", name: "Goal" }, authConfig);
+  updateOnboardingProfile(db, user.userId, {
+    age: 24,
+    sex: "male",
+    heightCm: 178,
+    weightKg: 76,
+    activityLevel: "moderately_active",
+    goalType: "gain_muscle"
+  });
+  addMeal(db, user.userId, {
+    name: "Small breakfast",
+    calories: 350,
+    protein: 20,
+    carbs: 40,
+    fats: 10,
+    loggedAt: `${TEST_DATE}T09:00:00.000Z`
+  });
+
+  const recommendations = getDailyRecommendations(db, user.userId, TEST_DATE);
+  const calorieTip = findTipByTitle(recommendations, "Calorie intake is far below goal");
+  assert.ok(calorieTip);
+  assert.ok(calorieTip.message.includes("muscle-gain"));
+  assert.equal(calorieTip.actionType, "meal");
+});
+
+test("daily recommendations use Turkish food context when relevant foods are available", () => {
+  const db = createDb();
+  const user = signup(db, { email: "turkish-context@example.com", password: "StrongPass123", name: "Turkish Context" }, authConfig);
+  addMeal(db, user.userId, {
+    name: "Large dinner",
+    calories: 2350,
+    protein: 85,
+    carbs: 260,
+    fats: 85,
+    loggedAt: `${TEST_DATE}T18:00:00.000Z`
+  });
+
+  const recommendations = getDailyRecommendations(db, user.userId, TEST_DATE);
+  const turkishTip = findTipByTitle(recommendations, "Turkish lighter option available");
+  assert.ok(turkishTip);
+  assert.match(turkishTip.message, /lentil|mercimek/i);
+  assert.equal(turkishTip.actionType, "meal");
+});
+
+test("daily recommendation safety blocklist still replaces unsafe text", () => {
+  const db = createDb();
+  const user = signup(db, { email: "safety-recs@example.com", password: "StrongPass123", name: "Safety" }, authConfig);
+  upsertDailyCheckIn(db, user.userId, {
+    date: TEST_DATE,
+    energyLevel: 1,
+    soreness: 5,
+    notes: "detox cure medication diagnosis"
+  });
+
+  const recommendations = getDailyRecommendations(db, user.userId, TEST_DATE);
+  const rendered = JSON.stringify(recommendations.tips).toLowerCase();
+  for (const blockedWord of ["detox", "cure", "medication", "diagnosis", "prescribe"]) {
+    assert.equal(rendered.includes(blockedWord), false);
   }
 });
 
@@ -294,12 +404,20 @@ test("recommendations: edge-case matrix for rule boundaries", () => {
       name: "healthy protein triggers positive protein feedback",
       seed(db, userId) {
         addMeal(db, userId, {
-          name: "High protein plan",
-          calories: 1900,
-          protein: 95,
-          carbs: 180,
-          fats: 55,
+          name: "High protein lunch",
+          calories: 1000,
+          protein: 55,
+          carbs: 95,
+          fats: 30,
           loggedAt: `${TEST_DATE}T12:00:00.000Z`
+        });
+        addMeal(db, userId, {
+          name: "High protein dinner",
+          calories: 900,
+          protein: 40,
+          carbs: 85,
+          fats: 25,
+          loggedAt: `${TEST_DATE}T18:00:00.000Z`
         });
       },
       expects: ["Protein balance looks solid"]

@@ -688,29 +688,66 @@ const SAFETY_BLOCKLIST = [
   /\bcure(d|s|ing)?\b/i,
   /\bprescrib(e|ed|ing)?\b/i,
   /\bmedication(s)?\b/i,
-  /\bdisease(s)?\b/i
+  /\bdisease(s)?\b/i,
+  /\bdetox\b/i,
+  /\bcleanse\b/i,
+  /\bstarv(e|ing|ation)\b/i,
+  /\bfat\s*burner(s)?\b/i,
+  /\bno[-\s]?carb(s)?\b/i,
+  /\bzero[-\s]?carb(s)?\b/i,
+  /\bunder\s*1[,]?200\s*calories\b/i
 ];
+const ALLOWED_ACTION_TYPES = new Set(["meal", "workout", "recovery", "habit"]);
 
 function containsBlockedMedicalTerms(text) {
   return SAFETY_BLOCKLIST.some((pattern) => pattern.test(text));
 }
 
-function createSafeTip(area, title, message, fallbackTitle, fallbackMessage) {
+function clampNumber(value, min, max) {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return min;
+  }
+  return Math.min(max, Math.max(min, value));
+}
+
+function cleanRecommendationReason(value, fallback) {
+  const text = typeof value === "string" ? value.trim() : "";
+  if (!text || containsBlockedMedicalTerms(text)) {
+    return fallback;
+  }
+  return text.slice(0, 220);
+}
+
+function createSafeTip(area, tipOrTitle, message, fallbackTitle, fallbackMessage) {
   const safeArea = ALLOWED_RECOMMENDATION_AREAS.has(area) ? area : "consistency";
-  const nextTitle = typeof title === "string" ? title.trim() : "";
-  const nextMessage = typeof message === "string" ? message.trim() : "";
+  const sourceTip = tipOrTitle && typeof tipOrTitle === "object" ? tipOrTitle : null;
+  const rawTitle = sourceTip ? sourceTip.title : tipOrTitle;
+  const rawMessage = sourceTip ? sourceTip.message : message;
+  const nextTitle = typeof rawTitle === "string" ? rawTitle.trim() : "";
+  const nextMessage = typeof rawMessage === "string" ? rawMessage.trim() : "";
   if (!nextTitle || !nextMessage || containsBlockedMedicalTerms(nextTitle) || containsBlockedMedicalTerms(nextMessage)) {
     return {
       area: safeArea,
       title: fallbackTitle,
-      message: fallbackMessage
+      message: fallbackMessage,
+      reason: "Original recommendation was replaced by the non-medical safety filter.",
+      confidence: 0.5,
+      priority: 50,
+      actionType: "habit"
     };
   }
-  return {
+  const safeTip = {
     area: safeArea,
     title: nextTitle,
     message: nextMessage
   };
+  if (sourceTip) {
+    safeTip.reason = cleanRecommendationReason(sourceTip.reason, "Based on today's logged nutrition, activity, and readiness context.");
+    safeTip.confidence = sourceTip.confidence === undefined ? 0.6 : clampNumber(sourceTip.confidence, 0, 1);
+    safeTip.priority = sourceTip.priority === undefined ? 50 : Math.round(clampNumber(sourceTip.priority, 0, 100));
+    safeTip.actionType = ALLOWED_ACTION_TYPES.has(sourceTip.actionType) ? sourceTip.actionType : "habit";
+  }
+  return safeTip;
 }
 
 function enforceRecommendationSafety(recommendations) {
@@ -725,7 +762,7 @@ function enforceRecommendationSafety(recommendations) {
     ? recommendations.tips.map((tip) =>
         createSafeTip(
           tip.area,
-          tip.title,
+          tip,
           tip.message,
           "Keep building consistency",
           "Small, repeatable healthy actions usually work better than extreme changes."
@@ -741,6 +778,104 @@ function enforceRecommendationSafety(recommendations) {
   };
 }
 
+function normalizeGoalType(goalType) {
+  if (["lose_weight", "fat_loss", "lose_fat"].includes(goalType)) {
+    return "lose_fat";
+  }
+  if (["gain_muscle", "muscle_gain", "gain_weight"].includes(goalType)) {
+    return "gain_muscle";
+  }
+  return "maintain";
+}
+
+function recommendationTip({ area, title, message, reason, priority, actionType, confidence }) {
+  return {
+    area,
+    title,
+    message,
+    reason,
+    priority,
+    confidence: confidence !== undefined ? confidence : Number((0.55 + priority / 220).toFixed(2)),
+    actionType
+  };
+}
+
+function candidateTip(priority, tip) {
+  return {
+    priority,
+    tip: recommendationTip({ ...tip, priority })
+  };
+}
+
+function normalizedText(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[ı]/g, "i")
+    .replace(/[ö]/g, "o")
+    .replace(/[ü]/g, "u")
+    .replace(/[ş]/g, "s")
+    .replace(/[ğ]/g, "g")
+    .replace(/[ç]/g, "c");
+}
+
+function foodAllowedForProfile(food, profile) {
+  const blockedTerms = [
+    ...(Array.isArray(profile.restrictions) ? profile.restrictions : []),
+    ...(Array.isArray(profile.allergies) ? profile.allergies : [])
+  ].map(normalizedText);
+  if (blockedTerms.length === 0) {
+    return true;
+  }
+  const searchable = normalizedText([
+    food.name,
+    food.category,
+    food.brand,
+    ...(Array.isArray(food.dietTags) ? food.dietTags : []),
+    ...(Array.isArray(food.allergens) ? food.allergens : [])
+  ].join(" "));
+  return !blockedTerms.some((term) => term && searchable.includes(term));
+}
+
+function findAvailableFood(db, profile, patterns) {
+  const foods = Array.isArray(db.foodItems) ? db.foodItems : [];
+  return foods.find((food) => foodAllowedForProfile(food, profile) && patterns.some((pattern) => pattern.test(normalizedText(food.name))));
+}
+
+function getMealTiming(meals) {
+  const hours = meals
+    .map((meal) => {
+      const hour = new Date(meal.loggedAt).getUTCHours();
+      return Number.isInteger(hour) ? hour : null;
+    })
+    .filter((hour) => hour !== null)
+    .sort((a, b) => a - b);
+  return {
+    firstHour: hours.length ? hours[0] : null,
+    lastHour: hours.length ? hours[hours.length - 1] : null
+  };
+}
+
+function buildReadinessContext(checkIn) {
+  if (!checkIn) {
+    return { lowReadiness: false, reasons: [] };
+  }
+  const reasons = [];
+  if (checkIn.energyLevel !== undefined && checkIn.energyLevel <= 2) {
+    reasons.push(`energy ${checkIn.energyLevel}/5`);
+  }
+  if (checkIn.soreness !== undefined && checkIn.soreness >= 4) {
+    reasons.push(`soreness ${checkIn.soreness}/5`);
+  }
+  if (checkIn.sleepHours !== undefined && checkIn.sleepHours < 6) {
+    reasons.push(`${checkIn.sleepHours}h sleep`);
+  }
+  const noteText = normalizedText(checkIn.notes);
+  if (noteText && /\b(exam|stress|tired|fatigue|busy|deadline)\b/.test(noteText)) {
+    reasons.push("check-in notes suggest a demanding day");
+  }
+  return { lowReadiness: reasons.length > 0, reasons };
+}
+
 function getDailyRecommendations(db, userId, date) {
   const userExists = db.users.some((user) => user.id === userId);
   if (!userExists) {
@@ -748,149 +883,304 @@ function getDailyRecommendations(db, userId, date) {
   }
 
   const summary = getDashboardSummary(db, userId, date);
+  const selectedDate = summary.date;
+  const profile = getProfile(db, userId);
+  const goalType = normalizeGoalType(profile.goalType);
+  const checkIn = getDailyCheckIn(db, userId, selectedDate);
+  const meals = db.meals.filter((meal) => meal.userId === userId && toDateKey(meal.loggedAt) === selectedDate);
+  const mealTiming = getMealTiming(meals);
+  const readiness = buildReadinessContext(checkIn);
+  const calorieTarget = summary.goals?.goalCalories || profile.dailyCalorieTarget || profile.goalCalories || 2000;
+  const proteinTarget = profile.proteinTarget || Math.max(60, Math.round(calorieTarget * 0.035));
+  const carbTarget = profile.carbTarget || Math.max(0, Math.round((calorieTarget * 0.45) / 4));
+  const fatTarget = profile.fatTarget || Math.max(0, Math.round((calorieTarget * 0.25) / 9));
+  const calorieGap = calorieTarget - summary.totalCaloriesIn;
+  const proteinGap = proteinTarget - summary.macros.protein;
   const candidates = [];
 
   if (summary.mealsCount === 0 && summary.workoutsCount === 0) {
-    candidates.push({
-      priority: 100,
-      tip: {
+    candidates.push(
+      candidateTip(100, {
         area: "consistency",
         title: "No activity logs yet today",
-        message: "Start with one meal log or a short walk to build daily momentum."
-      }
-    });
+        message: "Start with one meal log or a short walk to build daily momentum.",
+        reason: "No meal or workout logs exist for the selected date, so the engine prioritizes a low-friction first action.",
+        actionType: "habit"
+      })
+    );
+  }
+
+  if (readiness.lowReadiness) {
+    candidates.push(
+      candidateTip(96, {
+        area: "recovery",
+        title: "Recovery readiness is low",
+        message: "Keep training gentle today: easy walking, mobility, or a rest-focused routine fits your check-in.",
+        reason: `Daily check-in signals lower readiness (${readiness.reasons.join(", ")}).`,
+        actionType: "recovery",
+        confidence: 0.92
+      })
+    );
   }
 
   if (summary.goals) {
-    const calorieGap = summary.goals.goalCalories - summary.totalCaloriesIn;
     if (calorieGap >= 700) {
-      candidates.push({
-        priority: 90,
-        tip: {
+      const gainMuscle = goalType === "gain_muscle";
+      candidates.push(
+        candidateTip(gainMuscle ? 94 : 90, {
           area: "nutrition",
           title: "Calorie intake is far below goal",
-          message: "Add a balanced meal with protein, complex carbs, and healthy fats."
-        }
-      });
+          message: gainMuscle
+            ? "Add a full meal with protein and carbs so muscle-gain days are not under-fueled."
+            : "Add a balanced meal with protein, complex carbs, and healthy fats.",
+          reason: `Logged intake is about ${Math.round(calorieGap)} calories below the ${calorieTarget}-calorie target.`,
+          actionType: "meal"
+        })
+      );
     } else if (calorieGap >= 300) {
-      candidates.push({
-        priority: 80,
-        tip: {
+      candidates.push(
+        candidateTip(80, {
           area: "nutrition",
           title: "Calorie intake is below goal",
-          message: "Add a light snack with protein and complex carbs to close the gap."
-        }
-      });
+          message:
+            goalType === "gain_muscle"
+              ? "Add a protein-forward snack with carbs to support your muscle-gain target."
+              : "Add a light snack with protein and complex carbs to close the gap.",
+          reason: `The remaining calorie gap is about ${Math.round(calorieGap)} calories after today's meal logs.`,
+          actionType: "meal"
+        })
+      );
     } else if (calorieGap <= -600) {
-      candidates.push({
-        priority: 85,
-        tip: {
+      candidates.push(
+        candidateTip(85, {
           area: "nutrition",
           title: "Calorie intake is far above goal",
-          message: "Choose lighter, high-protein meals for the rest of the day."
-        }
-      });
+          message:
+            goalType === "lose_fat"
+              ? "For a fat-loss goal, keep the rest of the day lighter with protein and vegetables rather than skipping meals."
+              : "Choose lighter, high-protein meals for the rest of the day.",
+          reason: `Logged intake is about ${Math.abs(Math.round(calorieGap))} calories above the ${calorieTarget}-calorie target.`,
+          actionType: "meal"
+        })
+      );
     } else if (calorieGap <= -250) {
-      candidates.push({
-        priority: 75,
-        tip: {
+      candidates.push(
+        candidateTip(75, {
           area: "nutrition",
           title: "Calorie intake is above goal",
-          message: "Use smaller portions in your next meal and hydrate before eating."
-        }
-      });
+          message:
+            goalType === "lose_fat"
+              ? "Use a smaller portion at the next meal and choose filling protein, soup, or salad sides."
+              : "Use smaller portions in your next meal and hydrate before eating.",
+          reason: `Today's meal logs are about ${Math.abs(Math.round(calorieGap))} calories above target.`,
+          actionType: "meal"
+        })
+      );
     } else {
-      candidates.push({
-        priority: 50,
-        tip: {
+      candidates.push(
+        candidateTip(50, {
           area: "nutrition",
           title: "Calorie target is on track",
-          message: "Keep meal timing and hydration consistent through the day."
-        }
-      });
+          message: "Keep meal timing and hydration consistent through the day.",
+          reason: `Logged calories are within a practical range of the ${calorieTarget}-calorie target.`,
+          actionType: "habit",
+          confidence: 0.72
+        })
+      );
     }
   }
 
   if (summary.mealsCount > 0) {
-    const estimatedProteinTarget = Math.max(60, Math.round((summary.goals ? summary.goals.goalCalories : 2000) * 0.035));
-    const proteinGap = estimatedProteinTarget - summary.macros.protein;
     if (proteinGap > 35) {
-      candidates.push({
-        priority: 92,
-        tip: {
+      candidates.push(
+        candidateTip(92, {
           area: "nutrition",
           title: "Protein intake appears low",
-          message: "Aim to include 25-35g protein in your next meal."
-        }
-      });
+          message: "Aim to include 25-35g protein in your next meal.",
+          reason: `Logged protein is ${Math.round(summary.macros.protein)}g against a target near ${Math.round(proteinTarget)}g.`,
+          actionType: "meal",
+          confidence: 0.9
+        })
+      );
     } else if (proteinGap > 15) {
-      candidates.push({
-        priority: 70,
-        tip: {
+      candidates.push(
+        candidateTip(70, {
           area: "nutrition",
           title: "Protein could be improved",
-          message: "Add a moderate lean-protein source such as yogurt, eggs, or legumes."
-        }
-      });
+          message: "Add a moderate lean-protein source such as yogurt, eggs, or legumes.",
+          reason: `Protein is about ${Math.round(proteinGap)}g below the current target.`,
+          actionType: "meal"
+        })
+      );
     } else {
-      candidates.push({
-        priority: 40,
-        tip: {
+      candidates.push(
+        candidateTip(76, {
           area: "nutrition",
           title: "Protein balance looks solid",
-          message: "Maintain similar protein distribution across meals."
-        }
-      });
+          message: "Maintain similar protein distribution across meals.",
+          reason: `Protein is within range for the current target of about ${Math.round(proteinTarget)}g.`,
+          actionType: "habit",
+          confidence: 0.68
+        })
+      );
+    }
+  }
+
+  if (summary.mealsCount > 0) {
+    const carbGap = carbTarget - summary.macros.carbs;
+    if (summary.macros.fats > fatTarget * 1.35 && calorieGap < 450) {
+      candidates.push(
+        candidateTip(64, {
+          area: "nutrition",
+          title: "Fat balance is running high",
+          message: "Choose a leaner next plate with protein, vegetables, and a moderate carb portion.",
+          reason: `Logged fats are ${Math.round(summary.macros.fats)}g against a target near ${Math.round(fatTarget)}g.`,
+          actionType: "meal"
+        })
+      );
+    } else if (carbGap > 80 && summary.workoutMinutes > 20 && calorieGap > 250) {
+      candidates.push(
+        candidateTip(63, {
+          area: "nutrition",
+          title: "Carbs can support activity",
+          message: "Add a moderate carb source with protein after training, such as rice, bulgur, fruit, or lentils.",
+          reason: `Workout activity is logged and carbs are about ${Math.round(carbGap)}g below target.`,
+          actionType: "meal"
+        })
+      );
+    }
+  }
+
+  if (summary.mealsCount > 0 && mealTiming.lastHour !== null) {
+    if (summary.mealsCount < 2 && mealTiming.lastHour >= 12) {
+      candidates.push(
+        candidateTip(66, {
+          area: "nutrition",
+          title: "Meal timing is uneven",
+          message: "Plan one simple meal or snack later so the day does not depend on one large eating window.",
+          reason: `Only ${summary.mealsCount} meal is logged and the latest meal time is around ${mealTiming.lastHour}:00.`,
+          actionType: "meal"
+        })
+      );
+    } else if (summary.mealsCount >= 3 && proteinGap > 15) {
+      candidates.push(
+        candidateTip(58, {
+          area: "nutrition",
+          title: "Spread protein across meals",
+          message: "Your meal count is good; make the next meal protein-forward to improve distribution.",
+          reason: `${summary.mealsCount} meals are logged but protein remains below target.`,
+          actionType: "meal"
+        })
+      );
     }
   }
 
   if (summary.workoutMinutes === 0) {
-    candidates.push({
-      priority: 88,
-      tip: {
+    candidates.push(
+      candidateTip(readiness.lowReadiness ? 68 : 88, {
         area: "workout",
         title: "No workout logged today",
-        message: "A 20-30 minute walk or bodyweight session can keep your routine active."
-      }
-    });
+        message: readiness.lowReadiness
+          ? "If you move today, keep it easy: a short walk or mobility session is enough."
+          : "A 20-30 minute walk or bodyweight session can keep your routine active.",
+        reason: readiness.lowReadiness
+          ? "No workout is logged, but check-in readiness lowers the suggested intensity."
+          : "No workout minutes are logged for the selected date.",
+        actionType: readiness.lowReadiness ? "recovery" : "workout"
+      })
+    );
   } else if (summary.workoutMinutes < 20) {
-    candidates.push({
-      priority: 78,
-      tip: {
+    candidates.push(
+      candidateTip(78, {
         area: "workout",
         title: "Very short workout day",
-        message: "If possible, add 10-15 minutes of mobility, cardio, or core work."
-      }
-    });
+        message: "If possible, add 10-15 minutes of mobility, cardio, or core work.",
+        reason: `Workout time is ${summary.workoutMinutes} minutes, below the 20-minute threshold.`,
+        actionType: "workout"
+      })
+    );
   } else if (summary.workoutMinutes < 45) {
-    candidates.push({
-      priority: 62,
-      tip: {
+    candidates.push(
+      candidateTip(62, {
         area: "workout",
         title: "Workout volume is moderate",
-        message: "This is a good maintenance day; continue with steady consistency."
-      }
-    });
+        message: "This is a good maintenance day; continue with steady consistency.",
+        reason: `${summary.workoutMinutes} workout minutes are logged today.`,
+        actionType: "habit"
+      })
+    );
   } else {
-    candidates.push({
-      priority: 60,
-      tip: {
+    candidates.push(
+      candidateTip(60, {
         area: "workout",
         title: "Strong activity level today",
-        message: "Prioritize hydration and sleep to support tomorrow's recovery."
-      }
-    });
+        message: "Prioritize hydration and sleep to support tomorrow's recovery.",
+        reason: `${summary.workoutMinutes} workout minutes are logged today.`,
+        actionType: "recovery"
+      })
+    );
   }
 
   if (summary.workoutsCount >= 2 || summary.workoutMinutes >= 90) {
-    candidates.push({
-      priority: 55,
-      tip: {
+    candidates.push(
+      candidateTip(55, {
         area: "recovery",
         title: "Recovery should be prioritized",
-        message: "Include light stretching and a consistent bedtime to reduce next-day fatigue."
-      }
-    });
+        message: "Include light stretching and a consistent bedtime to reduce next-day fatigue.",
+        reason: `${summary.workoutsCount} workout(s) and ${summary.workoutMinutes} total minutes are logged.`,
+        actionType: "recovery"
+      })
+    );
+  }
+
+  const lahmacun = findAvailableFood(db, profile, [/lahmacun/]);
+  const ayran = findAvailableFood(db, profile, [/ayran/]);
+  const doner = findAvailableFood(db, profile, [/doner/]);
+  const kebap = findAvailableFood(db, profile, [/kebap/, /kebab/]);
+  const mercimek = findAvailableFood(db, profile, [/mercimek/, /lentil soup/]);
+  if (summary.mealsCount > 0 && (lahmacun || doner || kebap || mercimek)) {
+    if (calorieGap <= -250 && mercimek) {
+      candidates.push(
+        candidateTip(82, {
+          area: "nutrition",
+          title: "Turkish lighter option available",
+          message: `${mercimek.name} is a practical lighter choice for a student meal when calories are already ahead of target.`,
+          reason: `The food database includes ${mercimek.name}, and calories are currently above target.`,
+          actionType: "meal",
+          confidence: 0.86
+        })
+      );
+    } else if (proteinGap > 20 && kebap) {
+      candidates.push(
+        candidateTip(84, {
+          area: "nutrition",
+          title: "Turkish high-protein option available",
+          message: `${kebap.name} can work as a protein-forward meal; keep sides and sauces moderate.`,
+          reason: `The food database includes ${kebap.name}, and protein is about ${Math.round(proteinGap)}g below target.`,
+          actionType: "meal"
+        })
+      );
+    } else if (proteinGap > 15 && lahmacun && ayran) {
+      candidates.push(
+        candidateTip(81, {
+          area: "nutrition",
+          title: "Balance lahmacun with protein",
+          message: `${lahmacun.name} with ${ayran.name} can be more balanced than lahmacun alone; watch portions if calories are tight.`,
+          reason: `The food database includes ${lahmacun.name} and ${ayran.name}, while protein remains below target.`,
+          actionType: "meal"
+        })
+      );
+    } else if (calorieGap < 300 && doner) {
+      candidates.push(
+        candidateTip(52, {
+          area: "nutrition",
+          title: "Doner portion awareness",
+          message: `${doner.name} can fit the day better with a smaller bread/rice portion and ayran or salad if available.`,
+          reason: `The food database includes ${doner.name}, and remaining calories are limited.`,
+          actionType: "meal"
+        })
+      );
+    }
   }
 
   const selectedTips = candidates

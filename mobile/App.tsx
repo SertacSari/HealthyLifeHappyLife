@@ -80,6 +80,8 @@ type OnboardingData = {
 type CoachSuggestion = {
   title: string;
   body: string;
+  reason: string;
+  source: "rules" | "llm" | "fallback" | "local";
   action: "meal" | "workout" | "save";
   calories?: number;
   protein?: number;
@@ -97,6 +99,32 @@ const LIBRARY_FILTERS = ["All", "High protein", "Lower calorie", "Carb source"];
 const HUNGER_LEVELS = ["Low", "Medium", "High"];
 const ENERGY_LEVELS = ["Low", "Ok", "High"];
 const SORENESS_LEVELS = ["None", "Light", "Sore"];
+const ONBOARDING_STEPS = ["Basics", "Goals", "Privacy"];
+const QUICK_HEIGHTS = ["160", "170", "180", "190"];
+const QUICK_WEIGHTS = ["60", "70", "80", "90"];
+const QUICK_CALORIE_TARGETS = ["1800", "2200", "2600", "3000"];
+const QUICK_SLEEP_HOURS = ["5", "6", "7", "8"];
+const QUICK_WORKOUT_DURATIONS = ["20", "30", "45", "60"];
+const QUICK_WORKOUT_CALORIES = ["150", "250", "350", "500"];
+const QUICK_COACH_TIMES = ["10", "20", "30", "45"];
+const COACH_BUDGETS = ["Low", "Medium", "Flexible"];
+const INGREDIENT_CHIPS = ["eggs", "yogurt", "chicken", "rice", "spinach", "beans", "tuna", "oats"];
+const WORKOUT_EXERCISES = [
+  { name: "Squat", emoji: "🏋️", type: "Strength", cue: "Rooted strength", defaultKg: "40", defaultReps: "8", defaultTries: "3" },
+  { name: "Bench Press", emoji: "💪", type: "Strength", cue: "Strong push", defaultKg: "30", defaultReps: "8", defaultTries: "3" },
+  { name: "Deadlift", emoji: "⛰️", type: "Strength", cue: "Mountain pull", defaultKg: "50", defaultReps: "5", defaultTries: "3" },
+  { name: "Row", emoji: "🚣", type: "Strength", cue: "Bosphorus rhythm", defaultKg: "25", defaultReps: "10", defaultTries: "3" },
+  { name: "Hill Walk", emoji: "🌿", type: "Recovery", cue: "Yayla tempo", defaultKg: "0", defaultReps: "30", defaultTries: "1" },
+  { name: "Plank", emoji: "🧘", type: "Core", cue: "Quiet focus", defaultKg: "0", defaultReps: "45", defaultTries: "3" }
+];
+const QUICK_MEALS = [
+  { name: "Chicken Bowl", calories: "650", protein: "45", carbs: "50", fats: "20" },
+  { name: "Greek Yogurt Bowl", calories: "380", protein: "32", carbs: "42", fats: "8" },
+  { name: "Menemen", calories: "420", protein: "24", carbs: "18", fats: "28" },
+  { name: "Mercimek Corbasi", calories: "260", protein: "14", carbs: "38", fats: "6" },
+  { name: "Tavuk Sis", calories: "520", protein: "48", carbs: "35", fats: "18" },
+  { name: "Bulgur Pilavi", calories: "330", protein: "9", carbs: "62", fats: "6" }
+];
 const DEMO_EMAIL = "mvp@example.com";
 const DEMO_PASSWORD = "StrongPass123";
 const DEMO_NAME = "MVP User";
@@ -158,6 +186,22 @@ function formatMetric(value: number | null | undefined, suffix = "") {
     return "--";
   }
   return `${Math.round(value)}${suffix}`;
+}
+
+function formatSourceLabel(value?: string) {
+  if (!value) {
+    return "Rules";
+  }
+  if (value === "llm") {
+    return "AI Coach";
+  }
+  if (value === "fallback") {
+    return "Fallback";
+  }
+  if (value === "local") {
+    return "On-device";
+  }
+  return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
 function isOnboardingComplete(data: OnboardingData) {
@@ -331,7 +375,10 @@ export default function App() {
   const [libraryFilter, setLibraryFilter] = useState("All");
   const [libraryFoods, setLibraryFoods] = useState<FoodItem[]>([]);
 
-  const [workoutName, setWorkoutName] = useState("Push Day");
+  const [workoutName, setWorkoutName] = useState("Squat");
+  const [workoutKg, setWorkoutKg] = useState("40");
+  const [workoutReps, setWorkoutReps] = useState("8");
+  const [workoutTries, setWorkoutTries] = useState("3");
   const [workoutDuration, setWorkoutDuration] = useState("60");
   const [workoutCalories, setWorkoutCalories] = useState("350");
 
@@ -343,6 +390,7 @@ export default function App() {
   const [reminderFrequency, setReminderFrequency] = useState<ReminderFrequency>("daily");
   const [onboarding, setOnboarding] = useState<OnboardingData>(DEFAULT_ONBOARDING);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [onboardingStep, setOnboardingStep] = useState(0);
   const [checkInEnergy, setCheckInEnergy] = useState("Ok");
   const [checkInSoreness, setCheckInSoreness] = useState("Light");
   const [checkInSleep, setCheckInSleep] = useState("7");
@@ -350,6 +398,7 @@ export default function App() {
   const [checkInSaved, setCheckInSaved] = useState(false);
   const [coachTimeAvailable, setCoachTimeAvailable] = useState("20");
   const [coachHunger, setCoachHunger] = useState("Medium");
+  const [coachBudget, setCoachBudget] = useState("Medium");
   const [coachIngredients, setCoachIngredients] = useState("eggs, spinach, rice");
   const [coachSuggestions, setCoachSuggestions] = useState<CoachSuggestion[]>([]);
   const [savedCoachPlan, setSavedCoachPlan] = useState("");
@@ -615,7 +664,7 @@ export default function App() {
     try {
       setStatus("Saving workout...");
       await createWorkout(token, {
-        name: workoutName,
+        name: buildWorkoutLogName(),
         durationMinutes: toNumber(workoutDuration),
         caloriesBurned: toNumber(workoutCalories),
         loggedAt: loggedAtForDate(activeDate)
@@ -783,6 +832,8 @@ export default function App() {
       {
         title: `${coachTimeAvailable || "15"} min meal idea`,
         body: `Build a ${onboarding.dietPreference.toLowerCase()} plate with ${ingredientCopy}. ${hungerCopy}`,
+        reason: `Based on ${coachTimeAvailable || "15"} minutes available, ${coachHunger.toLowerCase()} hunger, ${coachBudget.toLowerCase()} budget, and ingredients on hand.`,
+        source: "local" as const,
         action: "meal" as const,
         calories: coachHunger === "High" ? 550 : 350,
         protein: 30,
@@ -792,11 +843,19 @@ export default function App() {
       {
         title: adaptiveWorkout.title,
         body: adaptiveWorkout.body,
+        reason: workoutRecommendation
+          ? workoutRecommendation.reason
+          : `Adapted from today's energy (${checkInEnergy}), soreness (${checkInSoreness}), and sleep (${checkInSleep || "0"}h).`,
+        source: workoutRecommendation ? ("rules" as const) : ("local" as const),
         action: "workout" as const
       },
       {
         title: "Coach note",
         body: recommendations?.tips[0]?.message || "Backend coach tips are unavailable, so this suggestion is generated locally.",
+        reason: recommendations?.tips[0]
+          ? `Pulled from today's ${recommendations.tips[0].area} recommendation.`
+          : "No daily recommendation was loaded, so the app used the local coach fallback.",
+        source: recommendations?.source || ("fallback" as const),
         action: "save" as const
       }
     ];
@@ -819,13 +878,16 @@ export default function App() {
       const mealSuggestions = await getCoachMealSuggestions(token, {
         availableIngredients: ingredients,
         timeAvailableMinutes: toNumber(coachTimeAvailable, 20),
-        hungerLevel: coachHunger
+        hungerLevel: coachHunger,
+        budgetPreference: coachBudget
       });
       const adaptiveWorkout = buildAdaptiveWorkout();
       setCoachSuggestions([
         ...mealSuggestions.suggestions.slice(0, 2).map((suggestion) => ({
           title: suggestion.title,
           body: `${suggestion.description} ${suggestion.rationale}`,
+          reason: suggestion.rationale || `Matched to ${coachHunger.toLowerCase()} hunger and available ingredients.`,
+          source: mealSuggestions.source === "llm" ? ("llm" as const) : ("fallback" as const),
           action: "meal" as const,
           calories: suggestion.calories,
           protein: suggestion.macros.protein,
@@ -835,11 +897,17 @@ export default function App() {
         {
           title: adaptiveWorkout.title,
           body: adaptiveWorkout.body,
+          reason: workoutRecommendation
+            ? workoutRecommendation.reason
+            : `Adapted from today's energy (${checkInEnergy}), soreness (${checkInSoreness}), and sleep (${checkInSleep || "0"}h).`,
+          source: workoutRecommendation ? ("rules" as const) : ("local" as const),
           action: "workout" as const
         },
         {
           title: "Coach note",
           body: mealSuggestions.disclaimer,
+          reason: "Safety note returned with the coach meal suggestion response.",
+          source: mealSuggestions.source === "llm" ? ("llm" as const) : ("fallback" as const),
           action: "save" as const
         }
       ]);
@@ -1049,6 +1117,78 @@ export default function App() {
     setOnboarding((current) => ({ ...current, [key]: value }));
   }
 
+  function updateNumericText(value: string, delta: number, onChange: (nextValue: string) => void, min = 0, max = 9999) {
+    const currentValue = toNumber(value, min);
+    const nextValue = Math.max(min, Math.min(max, currentValue + delta));
+    onChange(String(nextValue));
+  }
+
+  function setExactNumber(value: string, onChange: (nextValue: string) => void, min: number, max: number) {
+    const nextValue = Math.max(min, Math.min(max, Math.round(toNumber(value, min))));
+    onChange(String(nextValue));
+  }
+
+  function updateNumberDigit(
+    value: string,
+    digitIndex: number,
+    direction: 1 | -1,
+    onChange: (nextValue: string) => void,
+    min: number,
+    max: number,
+    digits: number
+  ) {
+    const current = Math.max(min, Math.min(max, Math.round(toNumber(value, min))));
+    const chars = String(current).padStart(digits, "0").slice(-digits).split("");
+    const nextDigit = (Number(chars[digitIndex]) + direction + 10) % 10;
+    chars[digitIndex] = String(nextDigit);
+    const nextValue = Math.max(min, Math.min(max, Number(chars.join(""))));
+    onChange(String(nextValue));
+  }
+
+  function selectWorkoutExercise(exercise: (typeof WORKOUT_EXERCISES)[number]) {
+    setWorkoutName(exercise.name);
+    setWorkoutKg(exercise.defaultKg);
+    setWorkoutReps(exercise.defaultReps);
+    setWorkoutTries(exercise.defaultTries);
+    if (exercise.name === "Hill Walk") {
+      setWorkoutDuration(exercise.defaultReps);
+      setWorkoutCalories("120");
+    }
+  }
+
+  function buildWorkoutLogName() {
+    const exercise = WORKOUT_EXERCISES.find((item) => item.name === workoutName);
+    const prefix = exercise ? `${exercise.emoji} ${exercise.name}` : workoutName || "Workout";
+    const kg = toNumber(workoutKg);
+    const reps = toNumber(workoutReps);
+    const tries = toNumber(workoutTries, 1);
+    if (kg > 0) {
+      return `${prefix} - ${kg} kg x ${reps} reps x ${tries} tries`;
+    }
+    return `${prefix} - ${reps} ${workoutName === "Hill Walk" ? "min" : "reps"} x ${tries} tries`;
+  }
+
+  function applyQuickMeal(meal: (typeof QUICK_MEALS)[number]) {
+    setMealName(meal.name);
+    setMealCalories(meal.calories);
+    setMealProtein(meal.protein);
+    setMealCarbs(meal.carbs);
+    setMealFats(meal.fats);
+    setStatus(`Selected ${meal.name}`);
+  }
+
+  function toggleCoachIngredient(ingredient: string) {
+    const ingredients = coachIngredients
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+    const hasIngredient = ingredients.some((item) => item.toLowerCase() === ingredient.toLowerCase());
+    const nextIngredients = hasIngredient
+      ? ingredients.filter((item) => item.toLowerCase() !== ingredient.toLowerCase())
+      : [...ingredients, ingredient];
+    setCoachIngredients(nextIngredients.join(", "));
+  }
+
   function renderChoiceRow(options: string[], value: string, onChange: (nextValue: string) => void) {
     return <View style={styles.segmentWrap}>{options.map((option) => renderChoiceButton(option, value, onChange))}</View>;
   }
@@ -1063,6 +1203,122 @@ export default function App() {
       >
         <Text style={[styles.pillText, isActive ? styles.pillTextActive : null]}>{option}</Text>
       </TouchableOpacity>
+    );
+  }
+
+  function renderQuickValueRow(options: string[], value: string, onChange: (nextValue: string) => void, suffix = "") {
+    return (
+      <View style={styles.quickValueRow}>
+        {options.map((option) => {
+          const isActive = option === value;
+          return (
+            <TouchableOpacity
+              key={option}
+              style={[styles.quickValueButton, isActive ? styles.quickValueButtonActive : null]}
+              onPress={() => onChange(option)}
+            >
+              <Text style={[styles.quickValueText, isActive ? styles.quickValueTextActive : null]}>
+                {option}
+                {suffix}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    );
+  }
+
+  function renderStepper(
+    label: string,
+    value: string,
+    onChange: (nextValue: string) => void,
+    step: number,
+    min: number,
+    max: number,
+    suffix = ""
+  ) {
+    return (
+      <View style={styles.stepper}>
+        <View style={styles.stepperCopy}>
+          <Text style={styles.fieldLabel}>{label}</Text>
+          <Text style={styles.stepperValue}>
+            {value || String(min)}
+            {suffix}
+          </Text>
+        </View>
+        <View style={styles.stepperControls}>
+          <TouchableOpacity
+            style={styles.stepperButton}
+            onPress={() => updateNumericText(value, -step, onChange, min, max)}
+          >
+            <Text style={styles.stepperButtonText}>-</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.stepperButton}
+            onPress={() => updateNumericText(value, step, onChange, min, max)}
+          >
+            <Text style={styles.stepperButtonText}>+</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
+  function renderDigitPicker(
+    label: string,
+    value: string,
+    onChange: (nextValue: string) => void,
+    min: number,
+    max: number,
+    digits: number,
+    suffix = ""
+  ) {
+    const displayValue = String(Math.max(min, Math.min(max, Math.round(toNumber(value, min)))))
+      .padStart(digits, "0")
+      .slice(-digits);
+    return (
+      <View style={styles.digitPicker}>
+        <View style={styles.headerRow}>
+          <Text style={styles.fieldLabel}>{label}</Text>
+          <Text style={styles.digitPickerValue}>
+            {Number(displayValue)}
+            {suffix}
+          </Text>
+        </View>
+        <View style={styles.digitRow}>
+          {displayValue.split("").map((digit, index) => (
+            <View style={styles.digitColumn} key={`${label}-${index}`}>
+              <TouchableOpacity
+                style={styles.digitButton}
+                onPress={() => updateNumberDigit(value, index, 1, onChange, min, max, digits)}
+              >
+                <Text style={styles.digitButtonText}>⌃</Text>
+              </TouchableOpacity>
+              <TextInput
+                style={styles.digitInput}
+                value={digit}
+                keyboardType="number-pad"
+                maxLength={1}
+                onChangeText={(nextDigit) => {
+                  const cleaned = nextDigit.replace(/\D/g, "").slice(-1);
+                  if (!cleaned) {
+                    return;
+                  }
+                  const chars = displayValue.split("");
+                  chars[index] = cleaned;
+                  setExactNumber(chars.join(""), onChange, min, max);
+                }}
+              />
+              <TouchableOpacity
+                style={styles.digitButton}
+                onPress={() => updateNumberDigit(value, index, -1, onChange, min, max, digits)}
+              >
+                <Text style={styles.digitButtonText}>⌄</Text>
+              </TouchableOpacity>
+            </View>
+          ))}
+        </View>
+      </View>
     );
   }
 
@@ -1177,23 +1433,53 @@ export default function App() {
     const targets = estimateNutritionTargets(profile, summary, onboarding, nutritionTargets);
     const onboardingComplete = isOnboardingComplete(onboarding);
     const adaptiveWorkout = buildAdaptiveWorkout();
+    const caloriesRemaining =
+      targets && summary ? Math.max(0, targets.calories - summary.totalCaloriesIn) : null;
+    const primaryCoachTip = recommendations?.tips[0];
     return (
       <>
-        {renderScreenHeader("Healthy Life, Happy Life", "Welcome back", "P", () => setTab("profile"))}
+        {renderScreenHeader("Today", `${activeDate} plan and progress`, "P", () => setTab("profile"))}
+
+        <View style={styles.heroCard}>
+          <View style={styles.headerRow}>
+            <View style={styles.screenTitleBlock}>
+              <Text style={styles.heroEyebrow}>Daily dashboard</Text>
+              <Text style={styles.heroMetric}>
+                {caloriesRemaining !== null ? `${caloriesRemaining}` : "--"}
+              </Text>
+              <Text style={styles.heroLabel}>calories left today</Text>
+            </View>
+            <TextInput
+              style={styles.compactDateInput}
+              value={activeDate}
+              onChangeText={setActiveDate}
+              placeholder="YYYY-MM-DD"
+            />
+          </View>
+          <View style={styles.quickActionRow}>
+            <TouchableOpacity style={styles.quickAction} onPress={() => setTab("meals")}>
+              <Text style={styles.quickActionTitle}>Log meal</Text>
+              <Text style={styles.small}>{summary?.mealsCount || 0} today</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.quickAction} onPress={() => setTab("workouts")}>
+              <Text style={styles.quickActionTitle}>Log workout</Text>
+              <Text style={styles.small}>{summary?.workoutMinutes || 0} min</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.quickAction} onPress={() => setTab("coach")}>
+              <Text style={styles.quickActionTitle}>Ask coach</Text>
+              <Text style={styles.small}>{formatSourceLabel(recommendations?.source)}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
         <View style={styles.card}>
           {targets ? (
             <>
               <View style={styles.headerRow}>
-                <Text style={styles.section}>Nutrition Goal</Text>
-                <Text style={styles.headerIconText}>M</Text>
+                <Text style={styles.section}>Nutrition</Text>
+                <Text style={styles.sourcePill}>{targets.source}</Text>
               </View>
               {summary ? renderProgressCard("Calories", summary.totalCaloriesIn, targets.calories, "") : null}
-              <TextInput
-                style={styles.compactDateInput}
-                value={activeDate}
-                onChangeText={setActiveDate}
-                placeholder="YYYY-MM-DD"
-              />
               <View style={styles.targetGrid}>
                 <View style={styles.metricTile}>
                   <Text style={styles.metricValue}>{summary?.macros.protein || 0}g / {targets.protein}g</Text>
@@ -1226,7 +1512,6 @@ export default function App() {
           ) : null}
           {summary ? (
             <View style={styles.statsBlock}>
-              <Text style={styles.statsLine}>Date: {summary.date}</Text>
               <View style={styles.summaryGrid}>
                 <View style={styles.summaryTile}>
                   <Text style={styles.metricValue}>{summary.netCalories}</Text>
@@ -1245,9 +1530,6 @@ export default function App() {
                   <Text style={styles.metricLabel}>Workouts</Text>
                 </View>
               </View>
-              <Text style={styles.small}>
-                Macros: P {summary.macros.protein}g / C {summary.macros.carbs}g / F {summary.macros.fats}g
-              </Text>
             </View>
           ) : (
             <Text style={styles.small}>No summary loaded yet.</Text>
@@ -1266,17 +1548,14 @@ export default function App() {
 
         <View style={styles.card}>
           <Text style={styles.section}>Daily Check-in</Text>
+          <Text style={styles.small}>A quick check-in makes workout and coach recommendations more relevant.</Text>
           <Text style={styles.fieldLabel}>Energy</Text>
           {renderChoiceRow(ENERGY_LEVELS, checkInEnergy, setCheckInEnergy)}
           <Text style={styles.fieldLabel}>Soreness</Text>
           {renderChoiceRow(SORENESS_LEVELS, checkInSoreness, setCheckInSoreness)}
-          <TextInput
-            style={styles.input}
-            value={checkInSleep}
-            onChangeText={setCheckInSleep}
-            placeholder="Sleep hours"
-            keyboardType="numeric"
-          />
+          <Text style={styles.fieldLabel}>Sleep</Text>
+          {renderQuickValueRow(QUICK_SLEEP_HOURS, checkInSleep, setCheckInSleep, "h")}
+          {renderStepper("Sleep hours", checkInSleep, setCheckInSleep, 0.5, 0, 14, "h")}
           <TextInput
             style={[styles.input, styles.multilineInput]}
             value={checkInNote}
@@ -1290,16 +1569,31 @@ export default function App() {
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.section}>Adaptive Workout</Text>
+          <View style={styles.headerRow}>
+            <Text style={styles.section}>Coach Preview</Text>
+            <Text style={styles.sourcePill}>{workoutRecommendation ? "Rules" : "On-device"}</Text>
+          </View>
           <View style={styles.listItem}>
             <Text style={styles.itemTitle}>{adaptiveWorkout.title}</Text>
             <Text style={styles.small}>{adaptiveWorkout.body}</Text>
           </View>
-          <Text style={styles.small}>
-            {workoutRecommendation
-              ? "Loaded from workout recommendation API using the selected date and latest check-in."
-              : "Using local check-in state because workout recommendation is not loaded."}
-          </Text>
+          <View style={styles.coachReasonBox}>
+            <Text style={styles.fieldLabel}>Why this</Text>
+            <Text style={styles.small}>
+              {workoutRecommendation
+                ? workoutRecommendation.reason
+                : `Based on energy ${checkInEnergy.toLowerCase()}, soreness ${checkInSoreness.toLowerCase()}, and ${checkInSleep || "0"}h sleep.`}
+            </Text>
+          </View>
+          {primaryCoachTip ? (
+            <TouchableOpacity style={styles.secondaryButton} onPress={() => setTab("coach")}>
+              <Text style={styles.secondaryButtonText}>Open Smart Coach: {primaryCoachTip.title}</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity style={styles.secondaryButton} onPress={() => setTab("coach")}>
+              <Text style={styles.secondaryButtonText}>Open Smart Coach</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </>
     );
@@ -1308,19 +1602,19 @@ export default function App() {
   function renderMeals() {
     return (
       <>
-        {renderScreenHeader("Nutrition", "Track your meals & macros", "M", () => setTab("library"))}
-        <TouchableOpacity style={styles.fullButton} onPress={() => setTab("library")}>
-          <Text style={styles.buttonText}>Recipe Finder</Text>
-        </TouchableOpacity>
+        {renderScreenHeader("Meals", "Log food and build reusable meals", "M", () => setTab("library"))}
         <View style={styles.card}>
           <View style={styles.headerRow}>
-            <Text style={styles.section}>Meal History ({meals.length})</Text>
-            <TouchableOpacity style={styles.floatingAddButton} onPress={addMealAndRefresh}>
-              <Text style={styles.floatingAddText}>+</Text>
+            <Text style={styles.section}>Today's Meals</Text>
+            <TouchableOpacity style={styles.smallButton} onPress={() => setTab("library")}>
+              <Text style={styles.smallButtonText}>Find foods</Text>
             </TouchableOpacity>
           </View>
           {meals.length === 0 ? (
-            <Text style={styles.small}>No meals for selected date.</Text>
+            <View style={styles.noticeBox}>
+              <Text style={styles.itemTitle}>No meals logged for {activeDate}</Text>
+              <Text style={styles.small}>Start with a quick manual entry, search FatSecret, or open the food library.</Text>
+            </View>
           ) : (
             meals.map((item) => (
               <View style={styles.mealCard} key={item.id}>
@@ -1349,16 +1643,37 @@ export default function App() {
           )}
         </View>
         <View style={styles.card}>
-          <Text style={styles.section}>Add Meal</Text>
+          <Text style={styles.section}>Quick Add</Text>
+          <Text style={styles.fieldLabel}>Common meals</Text>
+          <View style={styles.quickMealGrid}>
+            {QUICK_MEALS.map((meal) => (
+              <TouchableOpacity
+                key={meal.name}
+                style={[styles.quickMealChip, mealName === meal.name ? styles.quickMealChipActive : null]}
+                onPress={() => applyQuickMeal(meal)}
+              >
+                <Text style={[styles.quickMealTitle, mealName === meal.name ? styles.quickMealTitleActive : null]}>
+                  {meal.name}
+                </Text>
+                <Text style={[styles.small, mealName === meal.name ? styles.quickMealMetaActive : null]}>
+                  {meal.calories} kcal
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
           <TextInput style={styles.input} value={mealName} onChangeText={setMealName} placeholder="Meal name" />
-          <TextInput style={styles.input} value={mealCalories} onChangeText={setMealCalories} placeholder="Calories" keyboardType="numeric" />
-          <TextInput style={styles.input} value={mealProtein} onChangeText={setMealProtein} placeholder="Protein" keyboardType="numeric" />
-          <TextInput style={styles.input} value={mealCarbs} onChangeText={setMealCarbs} placeholder="Carbs" keyboardType="numeric" />
-          <TextInput style={styles.input} value={mealFats} onChangeText={setMealFats} placeholder="Fats" keyboardType="numeric" />
+          <Text style={styles.fieldLabel}>Calories</Text>
+          {renderQuickValueRow(["250", "400", "650", "850"], mealCalories, setMealCalories, " kcal")}
+          {renderDigitPicker("Calories", mealCalories, setMealCalories, 0, 3000, 4, " kcal")}
+          <View style={styles.row}>
+            {renderDigitPicker("Protein", mealProtein, setMealProtein, 0, 250, 3, "g")}
+            {renderDigitPicker("Carbs", mealCarbs, setMealCarbs, 0, 400, 3, "g")}
+          </View>
+          {renderDigitPicker("Fats", mealFats, setMealFats, 0, 200, 3, "g")}
           <TouchableOpacity style={styles.fullButton} onPress={addMealAndRefresh}>
             <Text style={styles.buttonText}>Save Meal</Text>
           </TouchableOpacity>
-          <Text style={styles.subsection}>FatSecret Search</Text>
+          <Text style={styles.subsection}>Search Nutrition Database</Text>
           <View style={styles.row}>
             <TextInput style={[styles.input, styles.searchInput]} value={foodSearchQuery} onChangeText={setFoodSearchQuery} placeholder="Search foods" />
             <TouchableOpacity style={styles.compactButton} onPress={searchFoodsForMeal}>
@@ -1366,10 +1681,18 @@ export default function App() {
             </TouchableOpacity>
           </View>
           {foodSearchResults.map((item) => (
-            <TouchableOpacity style={styles.listItem} key={item.foodId} onPress={() => useFoodForMeal(item)}>
+            <View style={styles.listItem} key={item.foodId}>
               <Text style={styles.itemTitle}>{item.brandName ? `${item.brandName} ${item.name}` : item.name}</Text>
               <Text style={styles.small}>kcal {item.calories ?? "-"} | P/C/F {item.protein ?? "-"}/{item.carbs ?? "-"}/{item.fats ?? "-"}</Text>
-            </TouchableOpacity>
+              <View style={styles.row}>
+                <TouchableOpacity style={styles.button} onPress={() => useFoodForMeal(item)}>
+                  <Text style={styles.buttonText}>Prefill</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.button} onPress={() => addFoodToLog(item)}>
+                  <Text style={styles.buttonText}>Add now</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
           ))}
         </View>
       </>
@@ -1402,7 +1725,7 @@ export default function App() {
     const visibleFoods = libraryFoods.filter(foodItemPassesLibraryFilter);
     return (
       <>
-      {renderScreenHeader("Recipe Finder", "Search foods by name or ingredients", "R", () => setTab("meals"))}
+      {renderScreenHeader("Food Library", "Search saved foods and add them fast", "R", () => setTab("meals"))}
       <View style={styles.card}>
         <View style={styles.row}>
           <TextInput
@@ -1421,8 +1744,7 @@ export default function App() {
           <View style={styles.noticeBox}>
             <Text style={styles.itemTitle}>Ready for food search</Text>
             <Text style={styles.small}>
-              This screen uses the saved food-item library when the backend is reachable. FatSecret search and manual
-              meal entry remain available on the Meals tab.
+              Search your saved food library. For broader nutrition database search or manual entry, use the Meals tab.
             </Text>
           </View>
         ) : (
@@ -1450,10 +1772,10 @@ export default function App() {
                 </View>
                 <View style={styles.row}>
                   <TouchableOpacity style={styles.button} onPress={() => useFoodItemForMeal(item)}>
-                    <Text style={styles.buttonText}>Prefill</Text>
+                    <Text style={styles.buttonText}>Use in form</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={styles.button} onPress={() => addFoodItemToLog(item)}>
-                    <Text style={styles.buttonText}>Add</Text>
+                    <Text style={styles.buttonText}>Add today</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -1468,6 +1790,7 @@ export default function App() {
   function renderTemplates() {
     return (
       <>
+        {renderScreenHeader("Templates", "Save meals you repeat often", "T", loadMealTemplates)}
         <View style={styles.card}>
           <View style={styles.headerRow}>
             <Text style={styles.section}>Meal Templates</Text>
@@ -1491,7 +1814,7 @@ export default function App() {
             <Text style={styles.buttonText}>Create From First Library Food</Text>
           </TouchableOpacity>
           <Text style={styles.small}>
-            Search the Library first, then create a reusable template from the first result for demo speed.
+            Search the Food Library first, then create a reusable template from the top result.
           </Text>
         </View>
 
@@ -1515,7 +1838,7 @@ export default function App() {
                     Items: {template.items.map((item) => item.name).join(", ") || "No items"}
                   </Text>
                   <TouchableOpacity style={styles.secondaryButton} onPress={() => addTemplateToToday(template)}>
-                    <Text style={styles.secondaryButtonText}>Add Today</Text>
+                    <Text style={styles.secondaryButtonText}>Add to Today</Text>
                   </TouchableOpacity>
                 </View>
               ))}
@@ -1528,11 +1851,13 @@ export default function App() {
 
   function renderWeekly() {
     return (
+      <>
+      {renderScreenHeader("Weekly", "Review progress and next focus", "W", loadWeeklyReview)}
       <View style={styles.card}>
         <View style={styles.headerRow}>
-          <Text style={styles.section}>Weekly Review</Text>
+          <Text style={styles.section}>Coach Review</Text>
           <TouchableOpacity style={styles.smallButton} onPress={loadWeeklyReview}>
-            <Text style={styles.smallButtonText}>Load</Text>
+            <Text style={styles.smallButtonText}>Refresh</Text>
           </TouchableOpacity>
         </View>
         {weeklyReview ? (
@@ -1568,26 +1893,28 @@ export default function App() {
                 <Text style={styles.small}>{item}</Text>
               </View>
             ))}
-            <Text style={styles.small}>Source: {weeklyReview.source}</Text>
+            <Text style={styles.sourcePill}>Source: {formatSourceLabel(weeklyReview.source)}</Text>
           </>
         ) : (
           <View style={styles.noticeBox}>
             <Text style={styles.itemTitle}>Weekly coach ready</Text>
-            <Text style={styles.small}>Load a concise AI/fallback summary for logged meals and workouts.</Text>
+            <Text style={styles.small}>Load a concise review of logged meals, workouts, wins, and next week's focus.</Text>
           </View>
         )}
       </View>
+      </>
     );
   }
 
   function renderSocial() {
     return (
       <>
+        {renderScreenHeader("Social", "Share meals with privacy controls", "S", loadSocialFeed)}
         <View style={styles.card}>
           <View style={styles.headerRow}>
-            <Text style={styles.section}>Social Feed</Text>
+            <Text style={styles.section}>Share</Text>
             <TouchableOpacity style={styles.smallButton} onPress={loadSocialFeed}>
-              <Text style={styles.smallButtonText}>Load</Text>
+              <Text style={styles.smallButtonText}>Refresh</Text>
             </TouchableOpacity>
           </View>
           <TouchableOpacity style={styles.fullButton} onPress={shareLatestMeal}>
@@ -1638,34 +1965,69 @@ export default function App() {
   function renderWorkouts() {
     return (
       <>
-      {renderScreenHeader("Workouts", "Track your training sessions", "W")}
+      {renderScreenHeader("Workout", "Move with yayla air and steady progress", "🌿")}
       <View style={styles.card}>
+        <View style={styles.headerRow}>
+          <Text style={styles.section}>Today's Training Garden</Text>
+          <TouchableOpacity style={styles.smallButton} onPress={() => setTab("coach")}>
+            <Text style={styles.smallButtonText}>Coach plan</Text>
+          </TouchableOpacity>
+        </View>
+        <View style={styles.coachReasonBox}>
+          <Text style={styles.itemTitle}>{buildAdaptiveWorkout().title}</Text>
+          <Text style={styles.small}>{buildAdaptiveWorkout().body}</Text>
+        </View>
+        <Text style={styles.fieldLabel}>Choose movement</Text>
+        <View style={styles.exerciseGrid}>
+          {WORKOUT_EXERCISES.map((exercise) => {
+            const selected = workoutName === exercise.name;
+            return (
+              <TouchableOpacity
+                key={exercise.name}
+                style={[styles.exerciseCard, selected ? styles.exerciseCardActive : null]}
+                onPress={() => selectWorkoutExercise(exercise)}
+              >
+                <Text style={styles.exerciseEmoji}>{exercise.emoji}</Text>
+                <Text style={[styles.exerciseTitle, selected ? styles.exerciseTitleActive : null]}>
+                  {exercise.name}
+                </Text>
+                <Text style={[styles.small, selected ? styles.quickMealMetaActive : null]}>
+                  {exercise.type} | {exercise.cue}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
         <TextInput
           style={styles.input}
           value={workoutName}
           onChangeText={setWorkoutName}
-          placeholder="Workout name"
+          placeholder="Custom movement"
         />
-        <TextInput
-          style={styles.input}
-          value={workoutDuration}
-          onChangeText={setWorkoutDuration}
-          placeholder="Duration minutes"
-          keyboardType="numeric"
-        />
-        <TextInput
-          style={styles.input}
-          value={workoutCalories}
-          onChangeText={setWorkoutCalories}
-          placeholder="Calories burned"
-          keyboardType="numeric"
-        />
+        <View style={styles.row}>
+          {renderDigitPicker("Load", workoutKg, setWorkoutKg, 0, 300, 3, " kg")}
+          {renderDigitPicker("Reps / time", workoutReps, setWorkoutReps, 0, 999, 3)}
+        </View>
+        {renderDigitPicker("Tries", workoutTries, setWorkoutTries, 1, 20, 2)}
+        <Text style={styles.fieldLabel}>Duration</Text>
+        {renderQuickValueRow(QUICK_WORKOUT_DURATIONS, workoutDuration, setWorkoutDuration, " min")}
+        {renderDigitPicker("Duration", workoutDuration, setWorkoutDuration, 1, 240, 3, " min")}
+        <Text style={styles.fieldLabel}>Calories burned</Text>
+        {renderQuickValueRow(QUICK_WORKOUT_CALORIES, workoutCalories, setWorkoutCalories, " kcal")}
+        {renderDigitPicker("Calories burned", workoutCalories, setWorkoutCalories, 0, 2000, 4, " kcal")}
+        <View style={styles.noticeBox}>
+          <Text style={styles.itemTitle}>Log preview</Text>
+          <Text style={styles.small}>{buildWorkoutLogName()}</Text>
+        </View>
         <TouchableOpacity style={styles.fullButton} onPress={addWorkoutAndRefresh}>
-          <Text style={styles.buttonText}>Add Workout</Text>
+          <Text style={styles.buttonText}>Save Workout</Text>
         </TouchableOpacity>
         <Text style={styles.subsection}>Workout History ({workouts.length})</Text>
         {workouts.length === 0 ? (
-          <Text style={styles.small}>No workouts for selected date.</Text>
+          <View style={styles.noticeBox}>
+            <Text style={styles.itemTitle}>No workout logged for {activeDate}</Text>
+            <Text style={styles.small}>Save a session here or add the coach plan from Smart Coach.</Text>
+          </View>
         ) : (
           workouts.map((item) => (
             <View style={styles.mealCard} key={item.id}>
@@ -1744,20 +2106,10 @@ export default function App() {
             onChangeText={setProfileName}
             placeholder="Display name"
           />
-          <TextInput
-            style={styles.input}
-            value={goalCalories}
-            onChangeText={setGoalCalories}
-            placeholder="Goal calories"
-            keyboardType="numeric"
-          />
-          <TextInput
-            style={styles.input}
-            value={goalWorkouts}
-            onChangeText={setGoalWorkouts}
-            placeholder="Goal workouts per week"
-            keyboardType="numeric"
-          />
+          <Text style={styles.fieldLabel}>Goal calories</Text>
+          {renderQuickValueRow(QUICK_CALORIE_TARGETS, goalCalories, setGoalCalories, " kcal")}
+          {renderDigitPicker("Daily calorie target", goalCalories, setGoalCalories, 1200, 5000, 4, " kcal")}
+          {renderDigitPicker("Weekly workout goal", goalWorkouts, setGoalWorkouts, 0, 14, 2, "x")}
           <TouchableOpacity style={styles.fullButton} onPress={saveProfile}>
             <Text style={styles.buttonText}>Save Profile</Text>
           </TouchableOpacity>
@@ -1774,57 +2126,81 @@ export default function App() {
   }
 
   function renderOnboardingForm() {
+    const isLastStep = onboardingStep === ONBOARDING_STEPS.length - 1;
     return (
       <View style={styles.formBlock}>
-        <View style={styles.row}>
-          <TextInput
-            style={[styles.input, styles.half]}
-            value={onboarding.age}
-            onChangeText={(value) => updateOnboardingField("age", value)}
-            placeholder="Age"
-            keyboardType="numeric"
-          />
-          <TextInput
-            style={[styles.input, styles.half]}
-            value={onboarding.heightCm}
-            onChangeText={(value) => updateOnboardingField("heightCm", value)}
-            placeholder="Height cm"
-            keyboardType="numeric"
-          />
+        <View style={styles.onboardingSteps}>
+          {ONBOARDING_STEPS.map((step, index) => {
+            const isActive = onboardingStep === index;
+            return (
+              <TouchableOpacity
+                key={step}
+                style={[styles.onboardingStep, isActive ? styles.onboardingStepActive : null]}
+                onPress={() => setOnboardingStep(index)}
+              >
+                <Text style={[styles.onboardingStepText, isActive ? styles.onboardingStepTextActive : null]}>
+                  {index + 1}. {step}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
-        <TextInput
-          style={styles.input}
-          value={onboarding.weightKg}
-          onChangeText={(value) => updateOnboardingField("weightKg", value)}
-          placeholder="Weight kg"
-          keyboardType="numeric"
-        />
-        <Text style={styles.fieldLabel}>Sex / gender</Text>
-        {renderChoiceRow(GENDERS, onboarding.gender, (value) => updateOnboardingField("gender", value))}
-        <Text style={styles.fieldLabel}>Activity level</Text>
-        {renderChoiceRow(ACTIVITY_LEVELS, onboarding.activityLevel, (value) =>
-          updateOnboardingField("activityLevel", value)
-        )}
-        <Text style={styles.fieldLabel}>Goal</Text>
-        {renderChoiceRow(GOAL_TYPES, onboarding.goalType, (value) => updateOnboardingField("goalType", value))}
-        <Text style={styles.fieldLabel}>Diet preference</Text>
-        {renderChoiceRow(DIET_PREFERENCES, onboarding.dietPreference, (value) =>
-          updateOnboardingField("dietPreference", value)
-        )}
-        <Text style={styles.fieldLabel}>Privacy</Text>
-        {renderChoiceRow(PRIVACY_PREFERENCES, onboarding.privacyPreference, (value) =>
-          updateOnboardingField("privacyPreference", value)
-        )}
-        <TextInput
-          style={[styles.input, styles.multilineInput]}
-          value={onboarding.restrictions}
-          onChangeText={(value) => updateOnboardingField("restrictions", value)}
-          placeholder="Restrictions, allergies, injuries"
-          multiline
-        />
-        <TouchableOpacity style={styles.fullButton} onPress={saveOnboarding}>
-          <Text style={styles.buttonText}>Complete Onboarding</Text>
-        </TouchableOpacity>
+        {onboardingStep === 0 ? (
+          <>
+            {renderDigitPicker("Age", onboarding.age, (value) => updateOnboardingField("age", value), 13, 100, 2)}
+            <Text style={styles.fieldLabel}>Height</Text>
+            {renderQuickValueRow(QUICK_HEIGHTS, onboarding.heightCm, (value) => updateOnboardingField("heightCm", value), " cm")}
+            {renderDigitPicker("Height", onboarding.heightCm, (value) => updateOnboardingField("heightCm", value), 120, 230, 3, " cm")}
+            <Text style={styles.fieldLabel}>Weight</Text>
+            {renderQuickValueRow(QUICK_WEIGHTS, onboarding.weightKg, (value) => updateOnboardingField("weightKg", value), " kg")}
+            {renderDigitPicker("Weight", onboarding.weightKg, (value) => updateOnboardingField("weightKg", value), 35, 220, 3, " kg")}
+            <Text style={styles.fieldLabel}>Sex / gender</Text>
+            {renderChoiceRow(GENDERS, onboarding.gender, (value) => updateOnboardingField("gender", value))}
+          </>
+        ) : null}
+        {onboardingStep === 1 ? (
+          <>
+            <Text style={styles.fieldLabel}>Activity level</Text>
+            {renderChoiceRow(ACTIVITY_LEVELS, onboarding.activityLevel, (value) =>
+              updateOnboardingField("activityLevel", value)
+            )}
+            <Text style={styles.fieldLabel}>Goal</Text>
+            {renderChoiceRow(GOAL_TYPES, onboarding.goalType, (value) => updateOnboardingField("goalType", value))}
+            <Text style={styles.fieldLabel}>Diet preference</Text>
+            {renderChoiceRow(DIET_PREFERENCES, onboarding.dietPreference, (value) =>
+              updateOnboardingField("dietPreference", value)
+            )}
+          </>
+        ) : null}
+        {onboardingStep === 2 ? (
+          <>
+            <Text style={styles.fieldLabel}>Privacy</Text>
+            {renderChoiceRow(PRIVACY_PREFERENCES, onboarding.privacyPreference, (value) =>
+              updateOnboardingField("privacyPreference", value)
+            )}
+            <TextInput
+              style={[styles.input, styles.multilineInput]}
+              value={onboarding.restrictions}
+              onChangeText={(value) => updateOnboardingField("restrictions", value)}
+              placeholder="Restrictions, allergies, injuries"
+              multiline
+            />
+          </>
+        ) : null}
+        <View style={styles.row}>
+          <TouchableOpacity
+            style={[styles.secondaryButton, styles.navStepButton]}
+            onPress={() => setOnboardingStep((current) => Math.max(0, current - 1))}
+          >
+            <Text style={styles.secondaryButtonText}>Back</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.fullButton, styles.navStepButton]}
+            onPress={isLastStep ? saveOnboarding : () => setOnboardingStep((current) => Math.min(ONBOARDING_STEPS.length - 1, current + 1))}
+          >
+            <Text style={styles.buttonText}>{isLastStep ? "Complete Onboarding" : "Next"}</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     );
   }
@@ -1845,22 +2221,40 @@ export default function App() {
   }
 
   function renderCoach() {
+    const recommendationSource = formatSourceLabel(recommendations?.source);
     return (
       <>
+        {renderScreenHeader("Smart Coach", "Recommendations with reason and source", "C", generateCoachSuggestions)}
         <View style={styles.card}>
-          <Text style={styles.section}>Smart Coach</Text>
-          <View style={styles.row}>
-            <TextInput
-              style={[styles.input, styles.half]}
-              value={coachTimeAvailable}
-              onChangeText={setCoachTimeAvailable}
-              placeholder="Minutes"
-              keyboardType="numeric"
-            />
-            <View style={styles.half}>
-              <Text style={styles.fieldLabel}>Hunger</Text>
-              {renderChoiceRow(HUNGER_LEVELS, coachHunger, setCoachHunger)}
-            </View>
+          <View style={styles.headerRow}>
+            <Text style={styles.section}>Plan Builder</Text>
+            <Text style={styles.sourcePill}>Daily: {recommendationSource}</Text>
+          </View>
+          <Text style={styles.small}>Tell the coach what you have and how much time you have. Suggestions can be added directly to today's log.</Text>
+          <Text style={styles.fieldLabel}>Time available</Text>
+          {renderQuickValueRow(QUICK_COACH_TIMES, coachTimeAvailable, setCoachTimeAvailable, " min")}
+          {renderDigitPicker("Minutes", coachTimeAvailable, setCoachTimeAvailable, 1, 120, 3, " min")}
+          <Text style={styles.fieldLabel}>Hunger</Text>
+          {renderChoiceRow(HUNGER_LEVELS, coachHunger, setCoachHunger)}
+          <Text style={styles.fieldLabel}>Budget</Text>
+          {renderChoiceRow(COACH_BUDGETS, coachBudget, setCoachBudget)}
+          <Text style={styles.fieldLabel}>Ingredients</Text>
+          <View style={styles.segmentWrap}>
+            {INGREDIENT_CHIPS.map((ingredient) => {
+              const selected = coachIngredients
+                .split(",")
+                .map((item) => item.trim().toLowerCase())
+                .includes(ingredient.toLowerCase());
+              return (
+                <TouchableOpacity
+                  key={ingredient}
+                  style={[styles.pillButton, selected ? styles.pillButtonActive : null]}
+                  onPress={() => toggleCoachIngredient(ingredient)}
+                >
+                  <Text style={[styles.pillText, selected ? styles.pillTextActive : null]}>{ingredient}</Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
           <TextInput
             style={[styles.input, styles.multilineInput]}
@@ -1870,29 +2264,35 @@ export default function App() {
             multiline
           />
           <TouchableOpacity style={styles.fullButton} onPress={generateCoachSuggestions}>
-            <Text style={styles.buttonText}>Get Suggestions</Text>
+            <Text style={styles.buttonText}>Build My Plan</Text>
           </TouchableOpacity>
           {coachSuggestions.length === 0 ? (
             <View style={styles.noticeBox}>
-              <Text style={styles.itemTitle}>Coach ready</Text>
+              <Text style={styles.itemTitle}>Ready to build a plan</Text>
               <Text style={styles.small}>
-                Suggestions use loaded daily recommendations when available and fall back to local rules when the coach
-                endpoint is unavailable.
+                The app will show each suggestion's reason and whether it came from AI coach, rules, fallback, or on-device logic.
               </Text>
             </View>
           ) : (
             <View style={styles.resultsBlock}>
               {coachSuggestions.map((suggestion) => (
-                <View style={styles.listItem} key={`${suggestion.action}-${suggestion.title}`}>
-                  <Text style={styles.itemTitle}>{suggestion.title}</Text>
+                <View style={styles.coachCard} key={`${suggestion.action}-${suggestion.title}`}>
+                  <View style={styles.headerRow}>
+                    <Text style={styles.itemTitle}>{suggestion.title}</Text>
+                    <Text style={styles.sourcePill}>{formatSourceLabel(suggestion.source)}</Text>
+                  </View>
                   <Text style={styles.small}>{suggestion.body}</Text>
+                  <View style={styles.coachReasonBox}>
+                    <Text style={styles.fieldLabel}>Why this recommendation</Text>
+                    <Text style={styles.small}>{suggestion.reason}</Text>
+                  </View>
                   <TouchableOpacity style={styles.secondaryButton} onPress={() => applyCoachSuggestion(suggestion)}>
                     <Text style={styles.secondaryButtonText}>
                       {suggestion.action === "meal"
-                        ? "Add Meal"
+                        ? "Add Meal to Today"
                         : suggestion.action === "workout"
-                          ? "Add Workout"
-                          : "Save"}
+                          ? "Add Workout to Today"
+                          : "Save Note"}
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -1903,24 +2303,29 @@ export default function App() {
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.section}>Coach</Text>
-          <Text style={styles.subsection}>Daily Recommendations</Text>
+          <View style={styles.headerRow}>
+            <Text style={styles.section}>Daily Recommendations</Text>
+            <Text style={styles.sourcePill}>{recommendationSource}</Text>
+          </View>
           {recommendations ? (
             <>
-              <Text style={styles.small}>Date: {recommendations.date}</Text>
-              <Text style={styles.small}>Engine: {recommendations.source || "rules"}</Text>
               <Text style={styles.small}>{recommendations.disclaimer}</Text>
               {recommendations.tips.map((tip, index) => (
                 <View style={styles.listItem} key={`${tip.area}-${index}`}>
-                  <Text style={styles.itemTitle}>
-                    {tip.area.toUpperCase()}: {tip.title}
-                  </Text>
+                  <View style={styles.headerRow}>
+                    <Text style={styles.itemTitle}>{tip.title}</Text>
+                    <Text style={styles.sourcePill}>{tip.area}</Text>
+                  </View>
                   <Text style={styles.small}>{tip.message}</Text>
+                  <Text style={styles.small}>Why: based on {recommendations.date} meals, workouts, profile goals, and check-in signals.</Text>
                 </View>
               ))}
             </>
           ) : (
-            <Text style={styles.small}>No recommendations loaded yet.</Text>
+            <View style={styles.noticeBox}>
+              <Text style={styles.itemTitle}>No daily recommendations loaded</Text>
+              <Text style={styles.small}>Refresh app data from Home to load rules or AI-powered daily tips.</Text>
+            </View>
           )}
 
           <Text style={styles.subsection}>Reminder Settings</Text>
@@ -2027,6 +2432,53 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 18,
     shadowOffset: { width: 0, height: 8 }
+  },
+  heroCard: {
+    backgroundColor: "#ffffff",
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: "#dbeedd",
+    padding: 18,
+    gap: 16,
+    shadowColor: "#0f172a",
+    shadowOpacity: 0.08,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 8 }
+  },
+  heroEyebrow: {
+    color: "#2f7d32",
+    fontSize: 12,
+    fontWeight: "900",
+    textTransform: "uppercase"
+  },
+  heroMetric: {
+    color: "#0f172a",
+    fontSize: 44,
+    fontWeight: "900"
+  },
+  heroLabel: {
+    color: "#475569",
+    fontSize: 14,
+    fontWeight: "700"
+  },
+  quickActionRow: {
+    flexDirection: "row",
+    gap: 8
+  },
+  quickAction: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    borderRadius: 18,
+    backgroundColor: "#f8fafc",
+    padding: 12,
+    minHeight: 74,
+    justifyContent: "space-between"
+  },
+  quickActionTitle: {
+    color: "#0f172a",
+    fontSize: 13,
+    fontWeight: "900"
   },
   section: {
     fontSize: 22,
@@ -2154,6 +2606,35 @@ const styles = StyleSheet.create({
     padding: 12,
     backgroundColor: "#f8fafc"
   },
+  coachCard: {
+    borderWidth: 1,
+    borderColor: "#dbeedd",
+    borderRadius: 20,
+    padding: 14,
+    backgroundColor: "#ffffff",
+    gap: 10
+  },
+  coachReasonBox: {
+    borderWidth: 1,
+    borderColor: "#dbeedd",
+    borderRadius: 16,
+    padding: 12,
+    backgroundColor: "#f3fbf4",
+    gap: 4
+  },
+  sourcePill: {
+    alignSelf: "flex-start",
+    color: "#2f7d32",
+    fontSize: 11,
+    fontWeight: "900",
+    borderWidth: 1,
+    borderColor: "#bfe7c4",
+    borderRadius: 999,
+    backgroundColor: "#e8f7ea",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    overflow: "hidden"
+  },
   resultsBlock: {
     gap: 8
   },
@@ -2207,6 +2688,31 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     gap: 8
   },
+  quickValueRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8
+  },
+  quickValueButton: {
+    borderWidth: 1,
+    borderColor: "#dbeedd",
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    backgroundColor: "#f8fafc"
+  },
+  quickValueButtonActive: {
+    backgroundColor: "#e8f7ea",
+    borderColor: "#49b84f"
+  },
+  quickValueText: {
+    color: "#1e293b",
+    fontSize: 12,
+    fontWeight: "800"
+  },
+  quickValueTextActive: {
+    color: "#2f7d32"
+  },
   pillButton: {
     borderWidth: 1,
     borderColor: "#cbd5e1",
@@ -2233,6 +2739,184 @@ const styles = StyleSheet.create({
   },
   formBlock: {
     gap: 8
+  },
+  stepper: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    borderRadius: 18,
+    padding: 12,
+    backgroundColor: "#f8fbfd",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10
+  },
+  stepperCopy: {
+    flex: 1,
+    gap: 2
+  },
+  stepperValue: {
+    color: "#0f172a",
+    fontSize: 18,
+    fontWeight: "900"
+  },
+  stepperControls: {
+    flexDirection: "row",
+    gap: 8
+  },
+  stepperButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "#e8f7ea",
+    borderWidth: 1,
+    borderColor: "#bfe7c4",
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  stepperButtonText: {
+    color: "#2f7d32",
+    fontSize: 22,
+    fontWeight: "900"
+  },
+  digitPicker: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: "#dbeedd",
+    borderRadius: 18,
+    padding: 12,
+    backgroundColor: "#f8fbfd",
+    gap: 10
+  },
+  digitPickerValue: {
+    color: "#2f7d32",
+    fontSize: 16,
+    fontWeight: "900"
+  },
+  digitRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 8
+  },
+  digitColumn: {
+    alignItems: "center",
+    gap: 4
+  },
+  digitButton: {
+    width: 34,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: "#e8f7ea",
+    borderWidth: 1,
+    borderColor: "#bfe7c4",
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  digitButtonText: {
+    color: "#2f7d32",
+    fontSize: 16,
+    fontWeight: "900",
+    lineHeight: 18
+  },
+  digitInput: {
+    width: 34,
+    height: 42,
+    borderRadius: 12,
+    backgroundColor: "#ffffff",
+    borderWidth: 1,
+    borderColor: "#dbeedd",
+    color: "#0f172a",
+    fontSize: 22,
+    fontWeight: "900",
+    textAlign: "center"
+  },
+  exerciseGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8
+  },
+  exerciseCard: {
+    width: "48%",
+    borderWidth: 1,
+    borderColor: "#dbeedd",
+    borderRadius: 16,
+    backgroundColor: "#f8fafc",
+    padding: 12,
+    gap: 4,
+    alignItems: "flex-start"
+  },
+  exerciseCardActive: {
+    backgroundColor: "#2f7d32",
+    borderColor: "#2f7d32"
+  },
+  exerciseEmoji: {
+    fontSize: 22
+  },
+  exerciseTitle: {
+    color: "#0f172a",
+    fontSize: 13,
+    fontWeight: "900"
+  },
+  exerciseTitleActive: {
+    color: "#ffffff"
+  },
+  onboardingSteps: {
+    flexDirection: "row",
+    gap: 8
+  },
+  onboardingStep: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: "#dbeedd",
+    borderRadius: 14,
+    paddingVertical: 10,
+    alignItems: "center",
+    backgroundColor: "#ffffff"
+  },
+  onboardingStepActive: {
+    backgroundColor: "#49b84f",
+    borderColor: "#49b84f"
+  },
+  onboardingStepText: {
+    color: "#475569",
+    fontSize: 11,
+    fontWeight: "900"
+  },
+  onboardingStepTextActive: {
+    color: "#ffffff"
+  },
+  navStepButton: {
+    flex: 1
+  },
+  quickMealGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8
+  },
+  quickMealChip: {
+    width: "48%",
+    borderWidth: 1,
+    borderColor: "#dbeedd",
+    borderRadius: 16,
+    padding: 12,
+    backgroundColor: "#f8fafc",
+    gap: 3
+  },
+  quickMealChipActive: {
+    backgroundColor: "#2f7d32",
+    borderColor: "#2f7d32"
+  },
+  quickMealTitle: {
+    color: "#0f172a",
+    fontSize: 13,
+    fontWeight: "900"
+  },
+  quickMealTitleActive: {
+    color: "#ffffff"
+  },
+  quickMealMetaActive: {
+    color: "#dcfce7"
   },
   multilineInput: {
     minHeight: 72,

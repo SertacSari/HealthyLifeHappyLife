@@ -579,6 +579,8 @@ Notes:
 
 - response includes at most 4 tips (priority-ranked)
 - tip `area` is one of: `nutrition`, `workout`, `recovery`, `consistency`
+- each tip keeps backward-compatible `title` and `message`, and may include additive explanation fields:
+  `reason`, `confidence` (`0` to `1`), `priority` (`0` to `100`), and `actionType` (`meal`, `workout`, `recovery`, `habit`)
 - all outputs are non-medical wellness guidance and include a fixed non-medical disclaimer
 - recommendation source is reported as `rules` (deterministic) or `llm` (LLM-generated)
 - set `RECOMMENDATION_ENGINE_MODE=hybrid` (or `llm_hybrid`) to enable LLM generation with deterministic fallback
@@ -606,22 +608,38 @@ Response:
       {
         "area": "consistency",
         "title": "No activity logs yet today",
-        "message": "Start with one meal log or a short walk to build daily momentum."
+        "message": "Start with one meal log or a short walk to build daily momentum.",
+        "reason": "No meal or workout logs exist for the selected date, so the engine prioritizes a low-friction first action.",
+        "confidence": 1,
+        "priority": 100,
+        "actionType": "habit"
       },
       {
         "area": "nutrition",
         "title": "Calorie intake is far below goal",
-        "message": "Add a balanced meal with protein, complex carbs, and healthy fats."
+        "message": "Add a balanced meal with protein, complex carbs, and healthy fats.",
+        "reason": "Logged intake is about 1800 calories below the 2000-calorie target.",
+        "confidence": 0.86,
+        "priority": 90,
+        "actionType": "meal"
       },
       {
         "area": "nutrition",
         "title": "Protein intake appears low",
-        "message": "Aim to include 25-35g protein in your next meal."
+        "message": "Aim to include 25-35g protein in your next meal.",
+        "reason": "Logged protein is 5g against a target near 70g.",
+        "confidence": 0.9,
+        "priority": 92,
+        "actionType": "meal"
       },
       {
         "area": "workout",
         "title": "No workout logged today",
-        "message": "A 20-30 minute walk or bodyweight session can keep your routine active."
+        "message": "A 20-30 minute walk or bodyweight session can keep your routine active.",
+        "reason": "No workout minutes are logged for the selected date.",
+        "confidence": 0.95,
+        "priority": 88,
+        "actionType": "workout"
       }
     ]
   }
