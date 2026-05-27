@@ -129,11 +129,11 @@ const DEMO_EMAIL = "mvp@example.com";
 const DEMO_PASSWORD = "StrongPass123";
 const DEMO_NAME = "MVP User";
 const PRIMARY_NAV: Array<{ value: Tab; label: string; icon: string }> = [
-  { value: "dashboard", label: "Home", icon: "H" },
-  { value: "meals", label: "Meals", icon: "M" },
-  { value: "workouts", label: "Workout", icon: "W" },
-  { value: "coach", label: "Coach", icon: "C" },
-  { value: "profile", label: "Profile", icon: "P" }
+  { value: "dashboard", label: "Home", icon: "▥" },
+  { value: "meals", label: "Meals", icon: "◉" },
+  { value: "workouts", label: "Train", icon: "◆" },
+  { value: "coach", label: "Coach", icon: "✦" },
+  { value: "profile", label: "Profile", icon: "●" }
 ];
 const SECONDARY_NAV: Array<{ value: Tab; label: string }> = [
   { value: "library", label: "Library" },
@@ -381,6 +381,7 @@ export default function App() {
   const [workoutTries, setWorkoutTries] = useState("3");
   const [workoutDuration, setWorkoutDuration] = useState("60");
   const [workoutCalories, setWorkoutCalories] = useState("350");
+  const [workoutMode, setWorkoutMode] = useState<"Templates" | "Manual">("Templates");
 
   const [profileName, setProfileName] = useState("");
   const [goalCalories, setGoalCalories] = useState("2200");
@@ -1429,6 +1430,24 @@ export default function App() {
     );
   }
 
+  function renderProgressDial(label: string, current: number, target: number, accent: string, suffix = "") {
+    const progress = target > 0 ? clampProgress(current / target) : 0;
+    const percent = Math.round(progress * 100);
+    return (
+      <View style={styles.dialTile}>
+        <View style={[styles.dialRing, { borderColor: accent }]}>
+          <View style={styles.dialCore}>
+            <Text style={styles.dialPercent}>{target > 0 ? `${percent}%` : "--"}</Text>
+          </View>
+        </View>
+        <Text style={styles.dialLabel}>{label}</Text>
+        <Text style={styles.small}>
+          {formatMetric(current, suffix)} / {target > 0 ? formatMetric(target, suffix) : "--"}
+        </Text>
+      </View>
+    );
+  }
+
   function renderDashboard() {
     const targets = estimateNutritionTargets(profile, summary, onboarding, nutritionTargets);
     const onboardingComplete = isOnboardingComplete(onboarding);
@@ -1436,9 +1455,13 @@ export default function App() {
     const caloriesRemaining =
       targets && summary ? Math.max(0, targets.calories - summary.totalCaloriesIn) : null;
     const primaryCoachTip = recommendations?.tips[0];
+    const calorieTarget = targets?.calories || 0;
+    const waterTargetMl = 2700;
+    const waterCurrentMl = Math.round(clampProgress(toNumber(checkInSleep, 7) / 8) * waterTargetMl);
+    const workoutTarget = targets?.workouts || profile?.goalWorkoutsPerWeek || 1;
     return (
       <>
-        {renderScreenHeader("Today", `${activeDate} plan and progress`, "P", () => setTab("profile"))}
+        {renderScreenHeader("Today", `${activeDate} plan and progress`, "●", () => setTab("profile"))}
 
         <View style={styles.heroCard}>
           <View style={styles.headerRow}>
@@ -1455,6 +1478,11 @@ export default function App() {
               onChangeText={setActiveDate}
               placeholder="YYYY-MM-DD"
             />
+          </View>
+          <View style={styles.dashboardDialRow}>
+            {renderProgressDial("Calories", summary?.totalCaloriesIn || 0, calorieTarget, "#49b84f")}
+            {renderProgressDial("Recovery", waterCurrentMl, waterTargetMl, "#0f766e", " ml")}
+            {renderProgressDial("Training", summary?.workoutsCount || 0, workoutTarget, "#2f7d32")}
           </View>
           <View style={styles.quickActionRow}>
             <TouchableOpacity style={styles.quickAction} onPress={() => setTab("meals")}>
@@ -1482,14 +1510,17 @@ export default function App() {
               {summary ? renderProgressCard("Calories", summary.totalCaloriesIn, targets.calories, "") : null}
               <View style={styles.targetGrid}>
                 <View style={styles.metricTile}>
+                  <Text style={styles.metricDot}>●</Text>
                   <Text style={styles.metricValue}>{summary?.macros.protein || 0}g / {targets.protein}g</Text>
                   <Text style={styles.metricLabel}>Protein</Text>
                 </View>
                 <View style={styles.metricTile}>
+                  <Text style={styles.metricDotAlt}>●</Text>
                   <Text style={styles.metricValue}>{summary?.macros.carbs || 0}g / {targets.carbs}g</Text>
                   <Text style={styles.metricLabel}>Carbs</Text>
                 </View>
                 <View style={styles.metricTile}>
+                  <Text style={styles.metricDotWarn}>●</Text>
                   <Text style={styles.metricValue}>{summary?.macros.fats || 0}g / {targets.fats}g</Text>
                   <Text style={styles.metricLabel}>Fats</Text>
                 </View>
@@ -1963,12 +1994,47 @@ export default function App() {
   }
 
   function renderWorkouts() {
+    const workoutMinutes = summary?.workoutMinutes || workouts.reduce((total, item) => total + item.durationMinutes, 0);
+    const workoutBurn = summary?.totalCaloriesOut || workouts.reduce((total, item) => total + item.caloriesBurned, 0);
     return (
       <>
-      {renderScreenHeader("Workout", "Move with yayla air and steady progress", "🌿")}
+      {renderScreenHeader("Workout", "Structured training and exact set logging", "◆")}
+      <View style={styles.trainingStatsRow}>
+        <View style={styles.trainingStatCard}>
+          <Text style={styles.trainingStatIcon}>◷</Text>
+          <Text style={styles.trainingStatValue}>{workoutMinutes}</Text>
+          <Text style={styles.metricLabel}>minutes</Text>
+        </View>
+        <View style={styles.trainingStatCard}>
+          <Text style={styles.trainingStatIcon}>▲</Text>
+          <Text style={styles.trainingStatValue}>{workoutBurn}</Text>
+          <Text style={styles.metricLabel}>kcal burned</Text>
+        </View>
+        <View style={styles.trainingStatCard}>
+          <Text style={styles.trainingStatIcon}>◆</Text>
+          <Text style={styles.trainingStatValue}>{workouts.length}</Text>
+          <Text style={styles.metricLabel}>sessions</Text>
+        </View>
+      </View>
+      <View style={styles.modeSwitch}>
+        {(["Templates", "Manual"] as const).map((mode) => {
+          const isActive = workoutMode === mode;
+          return (
+            <TouchableOpacity
+              key={mode}
+              style={[styles.modeSwitchButton, isActive ? styles.modeSwitchButtonActive : null]}
+              onPress={() => setWorkoutMode(mode)}
+            >
+              <Text style={[styles.modeSwitchText, isActive ? styles.modeSwitchTextActive : null]}>
+                {mode === "Templates" ? "▤ Templates" : "✎ Manual"}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
       <View style={styles.card}>
         <View style={styles.headerRow}>
-          <Text style={styles.section}>Today's Training Garden</Text>
+          <Text style={styles.section}>{workoutMode === "Templates" ? "Preset Workouts" : "Manual Workout"}</Text>
           <TouchableOpacity style={styles.smallButton} onPress={() => setTab("coach")}>
             <Text style={styles.smallButtonText}>Coach plan</Text>
           </TouchableOpacity>
@@ -1977,33 +2043,44 @@ export default function App() {
           <Text style={styles.itemTitle}>{buildAdaptiveWorkout().title}</Text>
           <Text style={styles.small}>{buildAdaptiveWorkout().body}</Text>
         </View>
-        <Text style={styles.fieldLabel}>Choose movement</Text>
-        <View style={styles.exerciseGrid}>
-          {WORKOUT_EXERCISES.map((exercise) => {
-            const selected = workoutName === exercise.name;
-            return (
-              <TouchableOpacity
-                key={exercise.name}
-                style={[styles.exerciseCard, selected ? styles.exerciseCardActive : null]}
-                onPress={() => selectWorkoutExercise(exercise)}
-              >
-                <Text style={styles.exerciseEmoji}>{exercise.emoji}</Text>
-                <Text style={[styles.exerciseTitle, selected ? styles.exerciseTitleActive : null]}>
-                  {exercise.name}
-                </Text>
-                <Text style={[styles.small, selected ? styles.quickMealMetaActive : null]}>
-                  {exercise.type} | {exercise.cue}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-        <TextInput
-          style={styles.input}
-          value={workoutName}
-          onChangeText={setWorkoutName}
-          placeholder="Custom movement"
-        />
+        {workoutMode === "Templates" ? (
+          <>
+            <Text style={styles.fieldLabel}>Choose movement</Text>
+            <View style={styles.workoutPresetList}>
+              {WORKOUT_EXERCISES.map((exercise) => {
+                const selected = workoutName === exercise.name;
+                return (
+                  <TouchableOpacity
+                    key={exercise.name}
+                    style={[styles.workoutPresetRow, selected ? styles.workoutPresetRowActive : null]}
+                    onPress={() => selectWorkoutExercise(exercise)}
+                  >
+                    <Text style={styles.exerciseEmoji}>{exercise.emoji}</Text>
+                    <View style={styles.workoutPresetCopy}>
+                      <Text style={[styles.exerciseTitle, selected ? styles.exerciseTitleActive : null]}>
+                        {exercise.name}
+                      </Text>
+                      <Text style={[styles.small, selected ? styles.quickMealMetaActive : null]}>
+                        {exercise.defaultKg} kg · {exercise.defaultReps} reps/time · {exercise.defaultTries} sets · {exercise.type}
+                      </Text>
+                    </View>
+                    <Text style={[styles.presetChevron, selected ? styles.presetChevronActive : null]}>›</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </>
+        ) : (
+          <>
+            <Text style={styles.fieldLabel}>Custom movement</Text>
+            <TextInput
+              style={styles.input}
+              value={workoutName}
+              onChangeText={setWorkoutName}
+              placeholder="Custom movement"
+            />
+          </>
+        )}
         <View style={styles.row}>
           {renderDigitPicker("Load", workoutKg, setWorkoutKg, 0, 300, 3, " kg")}
           {renderDigitPicker("Reps / time", workoutReps, setWorkoutReps, 0, 999, 3)}
@@ -2022,7 +2099,7 @@ export default function App() {
         <TouchableOpacity style={styles.fullButton} onPress={addWorkoutAndRefresh}>
           <Text style={styles.buttonText}>Save Workout</Text>
         </TouchableOpacity>
-        <Text style={styles.subsection}>Workout History ({workouts.length})</Text>
+        <Text style={styles.subsection}>Today's Logged Workouts ({workouts.length})</Text>
         {workouts.length === 0 ? (
           <View style={styles.noticeBox}>
             <Text style={styles.itemTitle}>No workout logged for {activeDate}</Text>
@@ -2461,6 +2538,48 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "700"
   },
+  dashboardDialRow: {
+    flexDirection: "row",
+    gap: 8
+  },
+  dialTile: {
+    flex: 1,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#edf2f7",
+    borderRadius: 18,
+    backgroundColor: "#f8fbfd",
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    gap: 6
+  },
+  dialRing: {
+    width: 74,
+    height: 74,
+    borderRadius: 37,
+    borderWidth: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#ffffff"
+  },
+  dialCore: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#f7faf7"
+  },
+  dialPercent: {
+    color: "#0f172a",
+    fontSize: 15,
+    fontWeight: "900"
+  },
+  dialLabel: {
+    color: "#334155",
+    fontSize: 12,
+    fontWeight: "900"
+  },
   quickActionRow: {
     flexDirection: "row",
     gap: 8
@@ -2861,6 +2980,89 @@ const styles = StyleSheet.create({
   exerciseTitleActive: {
     color: "#ffffff"
   },
+  trainingStatsRow: {
+    flexDirection: "row",
+    gap: 8
+  },
+  trainingStatCard: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: "#dbeedd",
+    borderRadius: 20,
+    backgroundColor: "#ffffff",
+    padding: 14,
+    alignItems: "center",
+    gap: 4,
+    shadowColor: "#0f172a",
+    shadowOpacity: 0.06,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 6 }
+  },
+  trainingStatIcon: {
+    color: "#2f7d32",
+    fontSize: 20,
+    fontWeight: "900"
+  },
+  trainingStatValue: {
+    color: "#0f172a",
+    fontSize: 24,
+    fontWeight: "900"
+  },
+  modeSwitch: {
+    flexDirection: "row",
+    gap: 8,
+    borderRadius: 18,
+    backgroundColor: "#e8f7ea",
+    borderWidth: 1,
+    borderColor: "#dbeedd",
+    padding: 4
+  },
+  modeSwitchButton: {
+    flex: 1,
+    borderRadius: 14,
+    paddingVertical: 11,
+    alignItems: "center"
+  },
+  modeSwitchButtonActive: {
+    backgroundColor: "#49b84f"
+  },
+  modeSwitchText: {
+    color: "#475569",
+    fontSize: 13,
+    fontWeight: "900"
+  },
+  modeSwitchTextActive: {
+    color: "#ffffff"
+  },
+  workoutPresetList: {
+    gap: 8
+  },
+  workoutPresetRow: {
+    borderWidth: 1,
+    borderColor: "#dbeedd",
+    borderRadius: 18,
+    backgroundColor: "#f8fafc",
+    padding: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12
+  },
+  workoutPresetRowActive: {
+    backgroundColor: "#2f7d32",
+    borderColor: "#2f7d32"
+  },
+  workoutPresetCopy: {
+    flex: 1,
+    gap: 3
+  },
+  presetChevron: {
+    color: "#94a3b8",
+    fontSize: 28,
+    fontWeight: "600"
+  },
+  presetChevronActive: {
+    color: "#ffffff"
+  },
   onboardingSteps: {
     flexDirection: "row",
     gap: 8
@@ -2934,6 +3136,21 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 10,
     backgroundColor: "#f8fafc"
+  },
+  metricDot: {
+    color: "#49b84f",
+    fontSize: 12,
+    fontWeight: "900"
+  },
+  metricDotAlt: {
+    color: "#0f766e",
+    fontSize: 12,
+    fontWeight: "900"
+  },
+  metricDotWarn: {
+    color: "#f59e0b",
+    fontSize: 12,
+    fontWeight: "900"
   },
   metricValue: {
     color: "#0f172a",
