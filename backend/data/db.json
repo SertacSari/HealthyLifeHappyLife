@@ -19,9 +19,25 @@
     {
       "userId": 1,
       "name": "Updated MVP",
-      "goalCalories": 2200,
-      "goalWorkoutsPerWeek": 3,
-      "updatedAt": "2026-05-27T10:58:08.638Z"
+      "goalCalories": 2875,
+      "goalWorkoutsPerWeek": 4,
+      "updatedAt": "2026-05-27T22:33:21.425Z",
+      "age": 21,
+      "sex": "other",
+      "gender": "other",
+      "heightCm": 175,
+      "weightKg": 75,
+      "activityLevel": "moderately_active",
+      "goalType": "gain_muscle",
+      "dietPreference": "balanced",
+      "privacyPreference": "private",
+      "restrictions": [],
+      "bmr": 1661,
+      "tdee": 2575,
+      "dailyCalorieTarget": 2875,
+      "proteinTarget": 135,
+      "carbTarget": 404,
+      "fatTarget": 80
     },
     {
       "userId": 2,
@@ -116,6 +132,125 @@
       "loggedAt": "2026-05-27T12:00:00.000Z",
       "foodItemId": 20,
       "servingMultiplier": 1
+    },
+    {
+      "id": 7,
+      "userId": 1,
+      "name": "Demo Protein Meal",
+      "calories": 165,
+      "protein": 31,
+      "carbs": 0,
+      "fats": 3.6,
+      "loggedAt": "2026-05-27T11:24:03.224Z",
+      "copiedFromPostId": 4,
+      "copiedFromUserId": 1
+    },
+    {
+      "id": 8,
+      "userId": 1,
+      "name": "Greek Yogurt",
+      "calories": 100,
+      "protein": 17,
+      "carbs": 6,
+      "fats": 0,
+      "loggedAt": "2026-05-27T12:00:00.000Z",
+      "foodItemId": 3,
+      "servingMultiplier": 1
+    },
+    {
+      "id": 9,
+      "userId": 1,
+      "name": "Grilled Chicken Breast",
+      "calories": 165,
+      "protein": 31,
+      "carbs": 0,
+      "fats": 3.6,
+      "loggedAt": "2026-05-27T12:00:00.000Z",
+      "foodItemId": 1,
+      "servingMultiplier": 1
+    },
+    {
+      "id": 10,
+      "userId": 1,
+      "name": "Grilled Chicken Breast",
+      "calories": 165,
+      "protein": 31,
+      "carbs": 0,
+      "fats": 3.6,
+      "loggedAt": "2026-05-27T12:00:00.000Z",
+      "foodItemId": 1,
+      "servingMultiplier": 1
+    },
+    {
+      "id": 11,
+      "userId": 1,
+      "name": "Brown Rice",
+      "calories": 216,
+      "protein": 5,
+      "carbs": 45,
+      "fats": 1.8,
+      "loggedAt": "2026-05-27T12:00:00.000Z",
+      "foodItemId": 2,
+      "servingMultiplier": 1
+    },
+    {
+      "id": 12,
+      "userId": 1,
+      "name": "Grilled Chicken Breast",
+      "calories": 165,
+      "protein": 31,
+      "carbs": 0,
+      "fats": 3.6,
+      "loggedAt": "2026-05-27T12:00:00.000Z",
+      "foodItemId": 1,
+      "servingMultiplier": 1
+    },
+    {
+      "id": 13,
+      "userId": 1,
+      "name": "Demo Protein Meal",
+      "calories": 165,
+      "protein": 31,
+      "carbs": 0,
+      "fats": 3.6,
+      "loggedAt": "2026-05-27T12:00:00.000Z",
+      "mealType": "lunch"
+    },
+    {
+      "id": 14,
+      "userId": 1,
+      "name": "Grilled Chicken Breast",
+      "calories": 165,
+      "protein": 31,
+      "carbs": 0,
+      "fats": 3.6,
+      "loggedAt": "2026-05-27T12:00:00.000Z",
+      "foodItemId": 1,
+      "servingMultiplier": 1
+    },
+    {
+      "id": 15,
+      "userId": 1,
+      "name": "Tavuk döner dürüm",
+      "calories": 581,
+      "protein": 35,
+      "carbs": 76.3,
+      "fats": 14.1,
+      "loggedAt": "2026-05-27T12:00:00.000Z",
+      "foodItemId": 6,
+      "servingMultiplier": 1
+    },
+    {
+      "id": 16,
+      "userId": 1,
+      "name": "🏆 Push Day workout program",
+      "calories": 1,
+      "protein": 0,
+      "carbs": 0,
+      "fats": 0,
+      "loggedAt": "2026-05-27T22:45:51.482Z",
+      "copiedFromPostId": 20,
+      "copiedFromUserId": 1
     }
   ],
   "workouts": [
@@ -134,16 +269,40 @@
       "durationMinutes": 60,
       "caloriesBurned": 350,
       "loggedAt": "2026-05-27T12:00:00.000Z"
+    },
+    {
+      "id": 3,
+      "userId": 1,
+      "name": "Pull Day - 55 reps x 4 tries",
+      "durationMinutes": 55,
+      "caloriesBurned": 385,
+      "loggedAt": "2026-05-27T12:00:00.000Z"
+    },
+    {
+      "id": 4,
+      "userId": 1,
+      "name": "🏋️ Squat - 40 kg x 8 reps x 3 tries",
+      "durationMinutes": 60,
+      "caloriesBurned": 430,
+      "loggedAt": "2026-05-27T12:00:00.000Z"
+    },
+    {
+      "id": 5,
+      "userId": 1,
+      "name": "🏋️ Squat - 40 kg x 8 reps x 3 tries",
+      "durationMinutes": 60,
+      "caloriesBurned": 430,
+      "loggedAt": "2026-05-27T12:00:00.000Z"
     }
   ],
   "counters": {
     "user": 3,
-    "meal": 7,
-    "workout": 3,
-    "socialPost": 3,
-    "postComment": 1,
-    "foodItem": 21,
-    "mealTemplate": 3,
+    "meal": 17,
+    "workout": 6,
+    "socialPost": 23,
+    "postComment": 2,
+    "foodItem": 33,
+    "mealTemplate": 5,
     "dailyCheckIn": 3
   },
   "reminders": [
@@ -198,6 +357,426 @@
       },
       "privateBodyData": {},
       "createdAt": "2026-05-27T10:16:25.256Z"
+    },
+    {
+      "id": 3,
+      "userId": 1,
+      "mealId": null,
+      "caption": "Demo meal share",
+      "visibility": "public",
+      "privacy": {
+        "hideCalories": false,
+        "hideMeasurements": true
+      },
+      "meal": {
+        "name": "Demo Protein Meal",
+        "calories": 165,
+        "protein": 31,
+        "carbs": 0,
+        "fats": 3.6,
+        "loggedAt": "2026-05-27T12:00:00.000Z"
+      },
+      "privateBodyData": {},
+      "createdAt": "2026-05-27T11:23:56.939Z"
+    },
+    {
+      "id": 4,
+      "userId": 1,
+      "mealId": null,
+      "caption": "Demo meal share",
+      "visibility": "public",
+      "privacy": {
+        "hideCalories": false,
+        "hideMeasurements": true
+      },
+      "meal": {
+        "name": "Demo Protein Meal",
+        "calories": 165,
+        "protein": 31,
+        "carbs": 0,
+        "fats": 3.6,
+        "loggedAt": "2026-05-27T12:00:00.000Z"
+      },
+      "privateBodyData": {},
+      "createdAt": "2026-05-27T11:23:57.842Z"
+    },
+    {
+      "id": 5,
+      "userId": 1,
+      "mealId": null,
+      "caption": "Demo meal share",
+      "visibility": "public",
+      "privacy": {
+        "hideCalories": false,
+        "hideMeasurements": true
+      },
+      "meal": {
+        "name": "Demo Protein Meal",
+        "calories": 165,
+        "protein": 31,
+        "carbs": 0,
+        "fats": 3.6,
+        "loggedAt": "2026-05-27T12:00:00.000Z"
+      },
+      "privateBodyData": {},
+      "createdAt": "2026-05-27T11:23:59.402Z"
+    },
+    {
+      "id": 6,
+      "userId": 1,
+      "mealId": null,
+      "caption": "Demo meal share",
+      "visibility": "public",
+      "privacy": {
+        "hideCalories": false,
+        "hideMeasurements": true
+      },
+      "meal": {
+        "name": "Demo Protein Meal",
+        "calories": 165,
+        "protein": 31,
+        "carbs": 0,
+        "fats": 3.6,
+        "loggedAt": "2026-05-27T12:00:00.000Z"
+      },
+      "privateBodyData": {},
+      "createdAt": "2026-05-27T11:23:59.768Z"
+    },
+    {
+      "id": 7,
+      "userId": 1,
+      "mealId": null,
+      "caption": "Demo meal share",
+      "visibility": "public",
+      "privacy": {
+        "hideCalories": false,
+        "hideMeasurements": true
+      },
+      "meal": {
+        "name": "Demo Protein Meal",
+        "calories": 165,
+        "protein": 31,
+        "carbs": 0,
+        "fats": 3.6,
+        "loggedAt": "2026-05-27T12:00:00.000Z"
+      },
+      "privateBodyData": {},
+      "createdAt": "2026-05-27T11:24:45.359Z"
+    },
+    {
+      "id": 8,
+      "userId": 1,
+      "mealId": null,
+      "caption": "Chest, shoulders, and triceps with steady rest. Plan: Bench Press 3x8, Shoulder Press 3x10, Incline Push-up 3x12, Triceps Dip 3x10",
+      "visibility": "public",
+      "privacy": {
+        "hideCalories": true,
+        "hideMeasurements": true
+      },
+      "meal": {
+        "name": "🏆 Push Day workout program",
+        "calories": 1,
+        "protein": 0,
+        "carbs": 0,
+        "fats": 0,
+        "loggedAt": "2026-05-27T12:00:00.000Z"
+      },
+      "privateBodyData": {},
+      "createdAt": "2026-05-27T11:41:14.012Z"
+    },
+    {
+      "id": 9,
+      "userId": 1,
+      "mealId": null,
+      "caption": "Demo meal share",
+      "visibility": "public",
+      "privacy": {
+        "hideCalories": false,
+        "hideMeasurements": true
+      },
+      "meal": {
+        "name": "Demo Protein Meal",
+        "calories": 165,
+        "protein": 31,
+        "carbs": 0,
+        "fats": 3.6,
+        "loggedAt": "2026-05-27T12:00:00.000Z"
+      },
+      "privateBodyData": {},
+      "createdAt": "2026-05-27T11:41:14.926Z"
+    },
+    {
+      "id": 10,
+      "userId": 1,
+      "mealId": null,
+      "caption": "Chest, shoulders, and triceps with steady rest. Plan: Bench Press 3x8, Shoulder Press 3x10, Incline Push-up 3x12, Triceps Dip 3x10",
+      "visibility": "public",
+      "privacy": {
+        "hideCalories": true,
+        "hideMeasurements": true
+      },
+      "meal": {
+        "name": "🏆 Push Day workout program",
+        "calories": 1,
+        "protein": 0,
+        "carbs": 0,
+        "fats": 0,
+        "loggedAt": "2026-05-27T12:00:00.000Z"
+      },
+      "privateBodyData": {},
+      "createdAt": "2026-05-27T11:41:15.538Z"
+    },
+    {
+      "id": 11,
+      "userId": 1,
+      "mealId": null,
+      "caption": "Demo meal share",
+      "visibility": "public",
+      "privacy": {
+        "hideCalories": false,
+        "hideMeasurements": true
+      },
+      "meal": {
+        "name": "Demo Protein Meal",
+        "calories": 165,
+        "protein": 31,
+        "carbs": 0,
+        "fats": 3.6,
+        "loggedAt": "2026-05-27T12:00:00.000Z"
+      },
+      "privateBodyData": {},
+      "createdAt": "2026-05-27T11:41:15.946Z"
+    },
+    {
+      "id": 12,
+      "userId": 1,
+      "mealId": null,
+      "caption": "Chest, shoulders, and triceps with steady rest. Plan: Bench Press 3x8, Shoulder Press 3x10, Incline Push-up 3x12, Triceps Dip 3x10",
+      "visibility": "public",
+      "privacy": {
+        "hideCalories": true,
+        "hideMeasurements": true
+      },
+      "meal": {
+        "name": "🏆 Push Day workout program",
+        "calories": 1,
+        "protein": 0,
+        "carbs": 0,
+        "fats": 0,
+        "loggedAt": "2026-05-27T12:00:00.000Z"
+      },
+      "privateBodyData": {},
+      "createdAt": "2026-05-27T11:41:19.599Z"
+    },
+    {
+      "id": 13,
+      "userId": 1,
+      "mealId": null,
+      "caption": "Demo meal share",
+      "visibility": "public",
+      "privacy": {
+        "hideCalories": false,
+        "hideMeasurements": true
+      },
+      "meal": {
+        "name": "Demo Protein Meal",
+        "calories": 165,
+        "protein": 31,
+        "carbs": 0,
+        "fats": 3.6,
+        "loggedAt": "2026-05-27T12:00:00.000Z"
+      },
+      "privateBodyData": {},
+      "createdAt": "2026-05-27T11:41:20.064Z"
+    },
+    {
+      "id": 14,
+      "userId": 1,
+      "mealId": null,
+      "caption": "Demo meal share",
+      "visibility": "public",
+      "privacy": {
+        "hideCalories": false,
+        "hideMeasurements": true
+      },
+      "meal": {
+        "name": "Demo Protein Meal",
+        "calories": 165,
+        "protein": 31,
+        "carbs": 0,
+        "fats": 3.6,
+        "loggedAt": "2026-05-27T12:00:00.000Z"
+      },
+      "privateBodyData": {},
+      "createdAt": "2026-05-27T11:41:21.762Z"
+    },
+    {
+      "id": 15,
+      "userId": 1,
+      "mealId": null,
+      "caption": "Chest, shoulders, and triceps with steady rest. Plan: Bench Press 3x8, Shoulder Press 3x10, Incline Push-up 3x12, Triceps Dip 3x10",
+      "visibility": "public",
+      "privacy": {
+        "hideCalories": true,
+        "hideMeasurements": true
+      },
+      "meal": {
+        "name": "🏆 Push Day workout program",
+        "calories": 1,
+        "protein": 0,
+        "carbs": 0,
+        "fats": 0,
+        "loggedAt": "2026-05-27T12:00:00.000Z"
+      },
+      "privateBodyData": {},
+      "createdAt": "2026-05-27T11:41:22.240Z"
+    },
+    {
+      "id": 16,
+      "userId": 1,
+      "mealId": null,
+      "caption": "Back and biceps with controlled pulling tempo. Plan: Row 3x10, Lat Pulldown 3x10, Deadlift 3x5, Biceps Curl 3x12",
+      "visibility": "public",
+      "privacy": {
+        "hideCalories": true,
+        "hideMeasurements": true
+      },
+      "meal": {
+        "name": "🚣 Pull Day workout program",
+        "calories": 1,
+        "protein": 0,
+        "carbs": 0,
+        "fats": 0,
+        "loggedAt": "2026-05-27T12:00:00.000Z"
+      },
+      "privateBodyData": {},
+      "createdAt": "2026-05-27T11:43:41.966Z"
+    },
+    {
+      "id": 17,
+      "userId": 1,
+      "mealId": null,
+      "caption": "Shared from today's log: Köfte",
+      "visibility": "public",
+      "privacy": {
+        "hideCalories": false,
+        "hideMeasurements": true
+      },
+      "meal": {
+        "name": "Köfte",
+        "calories": 204,
+        "protein": 16.2,
+        "carbs": 6.5,
+        "fats": 12.1,
+        "loggedAt": "2026-05-27T12:00:00.000Z"
+      },
+      "privateBodyData": {},
+      "createdAt": "2026-05-27T22:14:28.719Z"
+    },
+    {
+      "id": 18,
+      "userId": 1,
+      "mealId": null,
+      "caption": "Chest, shoulders, and triceps with steady rest. Plan: Bench Press 3x8, Shoulder Press 3x10, Incline Push-up 3x12, Triceps Dip 3x10",
+      "visibility": "public",
+      "privacy": {
+        "hideCalories": true,
+        "hideMeasurements": true
+      },
+      "meal": {
+        "name": "🏆 Push Day workout program",
+        "calories": 1,
+        "protein": 0,
+        "carbs": 0,
+        "fats": 0,
+        "loggedAt": "2026-05-27T12:00:00.000Z"
+      },
+      "privateBodyData": {},
+      "createdAt": "2026-05-27T22:14:32.972Z"
+    },
+    {
+      "id": 19,
+      "userId": 1,
+      "mealId": null,
+      "caption": "Chest, shoulders, and triceps with steady rest. Plan: Bench Press 3x8, Shoulder Press 3x10, Incline Push-up 3x12, Triceps Dip 3x10",
+      "visibility": "public",
+      "privacy": {
+        "hideCalories": true,
+        "hideMeasurements": true
+      },
+      "meal": {
+        "name": "🏆 Push Day workout program",
+        "calories": 1,
+        "protein": 0,
+        "carbs": 0,
+        "fats": 0,
+        "loggedAt": "2026-05-27T12:00:00.000Z"
+      },
+      "privateBodyData": {},
+      "createdAt": "2026-05-27T22:14:39.005Z"
+    },
+    {
+      "id": 20,
+      "userId": 1,
+      "mealId": null,
+      "caption": "Chest, shoulders, and triceps with steady rest. Plan: Bench Press 3x8, Shoulder Press 3x10, Incline Push-up 3x12, Triceps Dip 3x10",
+      "visibility": "public",
+      "privacy": {
+        "hideCalories": true,
+        "hideMeasurements": true
+      },
+      "meal": {
+        "name": "🏆 Push Day workout program",
+        "calories": 1,
+        "protein": 0,
+        "carbs": 0,
+        "fats": 0,
+        "loggedAt": "2026-05-27T12:00:00.000Z"
+      },
+      "privateBodyData": {},
+      "createdAt": "2026-05-27T22:18:01.099Z"
+    },
+    {
+      "id": 21,
+      "userId": 1,
+      "mealId": null,
+      "caption": "Short core session for busy days. Plan: Plank 3x45s, Dead Bug 3x10, Mountain Climber 3x20, Side Plank 2x30s",
+      "visibility": "public",
+      "privacy": {
+        "hideCalories": true,
+        "hideMeasurements": true
+      },
+      "meal": {
+        "name": "💪 Core Blast workout program",
+        "calories": 1,
+        "protein": 0,
+        "carbs": 0,
+        "fats": 0,
+        "loggedAt": "2026-05-27T12:00:00.000Z"
+      },
+      "privateBodyData": {},
+      "createdAt": "2026-05-27T22:30:17.758Z"
+    },
+    {
+      "id": 22,
+      "userId": 1,
+      "mealId": null,
+      "caption": "Short core session for busy days. Plan: Plank 3x45s, Dead Bug 3x10, Mountain Climber 3x20, Side Plank 2x30s",
+      "visibility": "public",
+      "privacy": {
+        "hideCalories": true,
+        "hideMeasurements": true
+      },
+      "meal": {
+        "name": "💪 Core Blast workout program",
+        "calories": 1,
+        "protein": 0,
+        "carbs": 0,
+        "fats": 0,
+        "loggedAt": "2026-05-27T12:00:00.000Z"
+      },
+      "privateBodyData": {},
+      "createdAt": "2026-05-27T22:46:22.764Z"
     }
   ],
   "postLikes": [
@@ -210,9 +789,27 @@
       "postId": 1,
       "userId": 1,
       "createdAt": "2026-05-27T10:16:28.287Z"
+    },
+    {
+      "postId": 4,
+      "userId": 1,
+      "createdAt": "2026-05-27T11:24:01.703Z"
+    },
+    {
+      "postId": 20,
+      "userId": 1,
+      "createdAt": "2026-05-27T22:45:50.864Z"
     }
   ],
-  "postComments": [],
+  "postComments": [
+    {
+      "id": 1,
+      "postId": 20,
+      "userId": 1,
+      "text": "Yrd",
+      "createdAt": "2026-05-27T22:45:46.897Z"
+    }
+  ],
   "foodItems": [
     {
       "source": "demo",
@@ -695,6 +1292,275 @@
         "gluten",
         "egg"
       ]
+    },
+    {
+      "source": "demo_estimate",
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z",
+      "id": 21,
+      "name": "Protein milk",
+      "brand": "HealthyLife Demo",
+      "category": "drink",
+      "servingSize": "250 ml",
+      "calories": 160,
+      "protein": 25,
+      "carbs": 12,
+      "fats": 2,
+      "dietTags": [
+        "high_protein",
+        "student_friendly",
+        "drink"
+      ],
+      "allergens": [
+        "milk"
+      ]
+    },
+    {
+      "source": "demo_estimate",
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z",
+      "id": 22,
+      "name": "Boiled eggs",
+      "brand": "HealthyLife Demo",
+      "category": "breakfast",
+      "servingSize": "2 eggs, about 100 g",
+      "calories": 155,
+      "protein": 13,
+      "carbs": 1.1,
+      "fats": 10.6,
+      "dietTags": [
+        "high_protein",
+        "breakfast",
+        "vegetarian",
+        "budget"
+      ],
+      "allergens": [
+        "egg"
+      ]
+    },
+    {
+      "source": "demo_estimate",
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z",
+      "id": 23,
+      "name": "Tuna sandwich",
+      "brand": "HealthyLife Demo",
+      "category": "sandwich",
+      "servingSize": "1 sandwich, about 220 g",
+      "calories": 420,
+      "protein": 34,
+      "carbs": 42,
+      "fats": 12,
+      "dietTags": [
+        "high_protein",
+        "student_friendly",
+        "lunch"
+      ],
+      "allergens": [
+        "fish",
+        "gluten"
+      ]
+    },
+    {
+      "source": "demo_estimate",
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z",
+      "id": 24,
+      "name": "Chicken rice bowl",
+      "brand": "HealthyLife Demo",
+      "category": "prepared",
+      "servingSize": "1 bowl, about 400 g",
+      "calories": 620,
+      "protein": 42,
+      "carbs": 58,
+      "fats": 18,
+      "dietTags": [
+        "high_protein",
+        "meal",
+        "student_friendly"
+      ],
+      "allergens": []
+    },
+    {
+      "source": "demo_estimate",
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z",
+      "id": 25,
+      "name": "Protein oatmeal",
+      "brand": "HealthyLife Demo",
+      "category": "breakfast",
+      "servingSize": "1 bowl, about 300 g",
+      "calories": 430,
+      "protein": 32,
+      "carbs": 55,
+      "fats": 9,
+      "dietTags": [
+        "high_protein",
+        "breakfast",
+        "fiber",
+        "student_friendly"
+      ],
+      "allergens": [
+        "gluten",
+        "milk"
+      ]
+    },
+    {
+      "source": "demo_estimate",
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z",
+      "id": 26,
+      "name": "Banana",
+      "brand": "HealthyLife Demo",
+      "category": "fruit",
+      "servingSize": "1 medium banana, about 118 g",
+      "calories": 105,
+      "protein": 1.3,
+      "carbs": 27,
+      "fats": 0.4,
+      "dietTags": [
+        "snack",
+        "vegan",
+        "budget",
+        "carb_source"
+      ],
+      "allergens": []
+    },
+    {
+      "source": "demo_estimate",
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z",
+      "id": 27,
+      "name": "Protein bar",
+      "brand": "HealthyLife Demo",
+      "category": "snack",
+      "servingSize": "1 bar, about 60 g",
+      "calories": 220,
+      "protein": 20,
+      "carbs": 22,
+      "fats": 7,
+      "dietTags": [
+        "high_protein",
+        "snack",
+        "student_friendly"
+      ],
+      "allergens": [
+        "milk",
+        "tree_nuts"
+      ]
+    },
+    {
+      "source": "demo_estimate",
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z",
+      "id": 28,
+      "name": "Peanut butter toast",
+      "brand": "HealthyLife Demo",
+      "category": "snack",
+      "servingSize": "1 toast, about 90 g",
+      "calories": 330,
+      "protein": 13,
+      "carbs": 31,
+      "fats": 18,
+      "dietTags": [
+        "snack",
+        "budget",
+        "vegetarian"
+      ],
+      "allergens": [
+        "peanut",
+        "gluten"
+      ]
+    },
+    {
+      "source": "demo_estimate",
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z",
+      "id": 29,
+      "name": "Cacık",
+      "brand": "HealthyLife Turkish Demo",
+      "category": "side",
+      "servingSize": "1 bowl, about 200 g",
+      "calories": 110,
+      "protein": 6,
+      "carbs": 9,
+      "fats": 5,
+      "dietTags": [
+        "turkish_food",
+        "cacik",
+        "side",
+        "vegetarian"
+      ],
+      "allergens": [
+        "milk"
+      ]
+    },
+    {
+      "source": "demo_estimate",
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z",
+      "id": 30,
+      "name": "Zeytinyağlı salata",
+      "brand": "HealthyLife Turkish Demo",
+      "category": "salad",
+      "servingSize": "1 bowl, about 250 g",
+      "calories": 190,
+      "protein": 4,
+      "carbs": 14,
+      "fats": 13,
+      "dietTags": [
+        "turkish_food",
+        "salad",
+        "vegetarian",
+        "low_calorie"
+      ],
+      "allergens": []
+    },
+    {
+      "source": "demo_estimate",
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z",
+      "id": 31,
+      "name": "Nohut yemeği",
+      "brand": "HealthyLife Turkish Demo",
+      "category": "prepared",
+      "servingSize": "1 plate, about 250 g",
+      "calories": 360,
+      "protein": 16,
+      "carbs": 52,
+      "fats": 10,
+      "dietTags": [
+        "turkish_food",
+        "chickpea",
+        "nohut",
+        "vegetarian",
+        "budget"
+      ],
+      "allergens": []
+    },
+    {
+      "source": "demo_estimate",
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z",
+      "id": 32,
+      "name": "Tavuklu makarna",
+      "brand": "HealthyLife Turkish Demo",
+      "category": "prepared",
+      "servingSize": "1 plate, about 350 g",
+      "calories": 590,
+      "protein": 38,
+      "carbs": 72,
+      "fats": 14,
+      "dietTags": [
+        "turkish_food",
+        "pasta",
+        "chicken",
+        "high_protein",
+        "student_friendly"
+      ],
+      "allergens": [
+        "gluten"
+      ]
     }
   ],
   "mealTemplates": [
@@ -747,6 +1613,56 @@
       },
       "createdAt": "2026-05-27T10:16:19.810Z",
       "updatedAt": "2026-05-27T10:16:19.810Z"
+    },
+    {
+      "id": 3,
+      "userId": 1,
+      "name": "Demo Protein Meal",
+      "mealType": "lunch",
+      "items": [
+        {
+          "foodItemId": 1,
+          "name": "Grilled Chicken Breast",
+          "servingMultiplier": 1,
+          "calories": 165,
+          "protein": 31,
+          "carbs": 0,
+          "fats": 3.6
+        }
+      ],
+      "totals": {
+        "calories": 165,
+        "protein": 31,
+        "carbs": 0,
+        "fats": 3.6
+      },
+      "createdAt": "2026-05-27T22:13:55.513Z",
+      "updatedAt": "2026-05-27T22:13:55.513Z"
+    },
+    {
+      "id": 4,
+      "userId": 1,
+      "name": "Demo Protein Meal",
+      "mealType": "lunch",
+      "items": [
+        {
+          "foodItemId": 1,
+          "name": "Grilled Chicken Breast",
+          "servingMultiplier": 1,
+          "calories": 165,
+          "protein": 31,
+          "carbs": 0,
+          "fats": 3.6
+        }
+      ],
+      "totals": {
+        "calories": 165,
+        "protein": 31,
+        "carbs": 0,
+        "fats": 3.6
+      },
+      "createdAt": "2026-05-27T22:42:05.595Z",
+      "updatedAt": "2026-05-27T22:42:05.595Z"
     }
   ],
   "dailyCheckIns": [
@@ -770,7 +1686,7 @@
       "soreness": 2,
       "sleepHours": 7,
       "notes": "",
-      "updatedAt": "2026-05-27T10:34:45.324Z"
+      "updatedAt": "2026-05-27T22:39:33.445Z"
     }
   ]
 }
