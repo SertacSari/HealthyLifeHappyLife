@@ -56,6 +56,7 @@ import type {
   MealTemplate,
   NutritionFood,
   NutritionTargets,
+  OnboardingProfilePayload,
   PrivacyPreference,
   Profile,
   ReminderSettings,
@@ -65,6 +66,7 @@ import type {
 } from "./src/types";
 
 type Tab = "dashboard" | "meals" | "library" | "templates" | "workouts" | "profile" | "coach" | "social" | "weekly";
+type AuthMode = "register" | "login";
 type ReminderFrequency = ReminderSettings["frequency"];
 type OnboardingData = {
   age: string;
@@ -117,6 +119,57 @@ const WORKOUT_EXERCISES = [
   { name: "Hill Walk", emoji: "🌿", type: "Recovery", cue: "Yayla tempo", defaultKg: "0", defaultReps: "30", defaultTries: "1" },
   { name: "Plank", emoji: "🧘", type: "Core", cue: "Quiet focus", defaultKg: "0", defaultReps: "45", defaultTries: "3" }
 ];
+const WORKOUT_PROGRAM_TEMPLATES = [
+  {
+    name: "Push Day",
+    emoji: "🏆",
+    type: "Strength",
+    duration: "60",
+    exercises: ["Bench Press 3x8", "Shoulder Press 3x10", "Incline Push-up 3x12", "Triceps Dip 3x10"],
+    note: "Chest, shoulders, and triceps with steady rest."
+  },
+  {
+    name: "Pull Day",
+    emoji: "🚣",
+    type: "Strength",
+    duration: "55",
+    exercises: ["Row 3x10", "Lat Pulldown 3x10", "Deadlift 3x5", "Biceps Curl 3x12"],
+    note: "Back and biceps with controlled pulling tempo."
+  },
+  {
+    name: "Leg Day",
+    emoji: "⛰️",
+    type: "Strength",
+    duration: "65",
+    exercises: ["Squat 4x8", "Romanian Deadlift 3x8", "Lunge 3x10", "Calf Raise 3x15"],
+    note: "Lower-body strength with a mountain-climb feel."
+  },
+  {
+    name: "Core Blast",
+    emoji: "💪",
+    type: "Core",
+    duration: "25",
+    exercises: ["Plank 3x45s", "Dead Bug 3x10", "Mountain Climber 3x20", "Side Plank 2x30s"],
+    note: "Short core session for busy days."
+  }
+];
+const DEMO_SOCIAL_PROGRAMS = [
+  {
+    title: "Ayse shared Push Day",
+    meta: "42 likes · 8 copied · friends",
+    body: "Bench Press, Shoulder Press, Incline Push-up, Triceps Dip. Good for a 60 min campus gym session."
+  },
+  {
+    title: "Mert copied Chicken Rice Bowl",
+    meta: "31 likes · 5 comments · public",
+    body: "High-protein lunch that fits a student budget. Copy-to-log keeps macros private by default."
+  },
+  {
+    title: "Zeynep shared Leg Day",
+    meta: "27 likes · 4 copied · public",
+    body: "Squat, RDL, Lunge, Calf Raise. Estimated calories are handled by the app."
+  }
+];
 const QUICK_MEALS = [
   { name: "Chicken Bowl", calories: "650", protein: "45", carbs: "50", fats: "20" },
   { name: "Greek Yogurt Bowl", calories: "380", protein: "32", carbs: "42", fats: "8" },
@@ -143,10 +196,10 @@ const SECONDARY_NAV: Array<{ value: Tab; label: string }> = [
 ];
 
 const DEFAULT_ONBOARDING: OnboardingData = {
-  age: "",
+  age: "21",
   gender: "Prefer not",
-  heightCm: "",
-  weightKg: "",
+  heightCm: "175",
+  weightKg: "75",
   activityLevel: "Moderate",
   goalType: "Maintain",
   dietPreference: "Balanced",
@@ -344,7 +397,37 @@ function estimateNutritionTargets(
   };
 }
 
+function buildOnboardingPayload(
+  onboarding: OnboardingData,
+  name: string,
+  fallbackName: string
+): OnboardingProfilePayload {
+  const weightKg = toNumber(onboarding.weightKg, 75);
+  const activityMultiplier =
+    onboarding.activityLevel === "High" ? 34 : onboarding.activityLevel === "Low" ? 26 : 30;
+  const goalAdjustment =
+    onboarding.goalType === "Lose fat" ? -350 : onboarding.goalType === "Gain muscle" ? 250 : 0;
+  const goalCalories = Math.max(1200, Math.round(weightKg * activityMultiplier + goalAdjustment));
+  const goalWorkoutsPerWeek = onboarding.activityLevel === "High" ? 5 : onboarding.activityLevel === "Low" ? 3 : 4;
+  return {
+    name: name || fallbackName,
+    goalCalories,
+    goalWorkoutsPerWeek,
+    age: toNumber(onboarding.age),
+    gender: mapGender(onboarding.gender),
+    sex: mapGender(onboarding.gender),
+    heightCm: toNumber(onboarding.heightCm),
+    weightKg,
+    activityLevel: mapActivityLevel(onboarding.activityLevel),
+    goalType: mapGoalType(onboarding.goalType),
+    dietPreference: onboarding.dietPreference,
+    privacyPreference: mapPrivacyPreference(onboarding.privacyPreference),
+    restrictions: splitList(onboarding.restrictions)
+  };
+}
+
 export default function App() {
+  const [authMode, setAuthMode] = useState<AuthMode>("register");
   const [email, setEmail] = useState(DEMO_EMAIL);
   const [password, setPassword] = useState(DEMO_PASSWORD);
   const [name, setName] = useState(DEMO_NAME);
@@ -382,6 +465,7 @@ export default function App() {
   const [workoutDuration, setWorkoutDuration] = useState("60");
   const [workoutCalories, setWorkoutCalories] = useState("350");
   const [workoutMode, setWorkoutMode] = useState<"Templates" | "Manual">("Templates");
+  const [workoutTemplates, setWorkoutTemplates] = useState(WORKOUT_PROGRAM_TEMPLATES);
 
   const [profileName, setProfileName] = useState("");
   const [goalCalories, setGoalCalories] = useState("2200");
@@ -424,6 +508,7 @@ export default function App() {
   }
 
   function useDemoAccount() {
+    setAuthMode("login");
     setEmail(DEMO_EMAIL);
     setPassword(DEMO_PASSWORD);
     setName(DEMO_NAME);
@@ -442,7 +527,8 @@ export default function App() {
       nextReminderSettings,
       nextNutritionTargets,
       nextDailyCheckIn,
-      nextWorkoutRecommendation
+      nextWorkoutRecommendation,
+      nextLibraryFoods
     ] =
       await Promise.all([
       getMe(nextToken),
@@ -454,7 +540,8 @@ export default function App() {
       getReminderSettings(nextToken),
       getNutritionTargets(nextToken).catch(() => null),
       getDailyCheckIn(nextToken, nextDate).catch(() => null),
-      getWorkoutRecommendation(nextToken, nextDate).catch(() => null)
+      getWorkoutRecommendation(nextToken, nextDate).catch(() => null),
+      listFoodItems(nextToken).catch(() => [])
     ]);
 
     setUserEmail(nextUser.email);
@@ -468,6 +555,7 @@ export default function App() {
     setRecommendations(nextRecommendations);
     setReminderSettings(nextReminderSettings);
     setNutritionTargets(nextNutritionTargets);
+    setLibraryFoods(nextLibraryFoods);
     setWorkoutRecommendation(nextWorkoutRecommendation);
     setReminderEnabled(nextReminderSettings.enabled);
     setReminderTime(nextReminderSettings.reminderTime);
@@ -490,10 +578,18 @@ export default function App() {
       const data = await signup(email, password, name);
       setToken(data.token);
       setUserEmail(data.user.email);
+      if (isOnboardingComplete(onboarding)) {
+        const payload = buildOnboardingPayload(onboarding, profileName || name, name);
+        await updateOnboardingProfile(data.token, payload);
+        setGoalCalories(String(payload.goalCalories || 2200));
+        setGoalWorkouts(String(payload.goalWorkoutsPerWeek || 4));
+        setShowOnboarding(false);
+      } else {
+        setShowOnboarding(true);
+      }
       await hydrateApp(data.token);
       setTab("profile");
-      setShowOnboarding(true);
-      setStatus("Signup successful. Complete onboarding next.");
+      setStatus(isOnboardingComplete(onboarding) ? "Account created with profile targets." : "Signup successful. Complete onboarding next.");
     } catch (error) {
       setStatus(String(error));
     }
@@ -704,13 +800,9 @@ export default function App() {
       return;
     }
 
-    const weightKg = toNumber(onboarding.weightKg, 75);
-    const activityMultiplier =
-      onboarding.activityLevel === "High" ? 34 : onboarding.activityLevel === "Low" ? 26 : 30;
-    const goalAdjustment =
-      onboarding.goalType === "Lose fat" ? -350 : onboarding.goalType === "Gain muscle" ? 250 : 0;
-    const nextCalories = Math.max(1200, Math.round(weightKg * activityMultiplier + goalAdjustment));
-    const nextWorkouts = onboarding.activityLevel === "High" ? 5 : onboarding.activityLevel === "Low" ? 3 : 4;
+    const payload = buildOnboardingPayload(onboarding, profileName || name, name);
+    const nextCalories = payload.goalCalories || 2200;
+    const nextWorkouts = payload.goalWorkoutsPerWeek || 4;
 
     setGoalCalories(String(nextCalories));
     setGoalWorkouts(String(nextWorkouts));
@@ -722,21 +814,7 @@ export default function App() {
     }
 
     try {
-      const updated = await updateOnboardingProfile(token, {
-        name: profileName || name,
-        goalCalories: nextCalories,
-        goalWorkoutsPerWeek: nextWorkouts,
-        age: toNumber(onboarding.age),
-        gender: mapGender(onboarding.gender),
-        sex: mapGender(onboarding.gender),
-        heightCm: toNumber(onboarding.heightCm),
-        weightKg,
-        activityLevel: mapActivityLevel(onboarding.activityLevel),
-        goalType: mapGoalType(onboarding.goalType),
-        dietPreference: onboarding.dietPreference,
-        privacyPreference: mapPrivacyPreference(onboarding.privacyPreference),
-        restrictions: splitList(onboarding.restrictions)
-      });
+      const updated = await updateOnboardingProfile(token, payload);
       setProfile(updated);
       await hydrateApp(token);
       setStatus("Onboarding complete and nutrition targets updated");
@@ -1114,6 +1192,10 @@ export default function App() {
     hydrateApp(token, activeDate).catch((error) => setStatus(String(error)));
   }, [activeDate]);
 
+  useEffect(() => {
+    setWorkoutCalories(String(estimateWorkoutCalories()));
+  }, [workoutName, workoutKg, workoutTries, workoutDuration]);
+
   function updateOnboardingField<K extends keyof OnboardingData>(key: K, value: OnboardingData[K]) {
     setOnboarding((current) => ({ ...current, [key]: value }));
   }
@@ -1151,10 +1233,66 @@ export default function App() {
     setWorkoutKg(exercise.defaultKg);
     setWorkoutReps(exercise.defaultReps);
     setWorkoutTries(exercise.defaultTries);
-    if (exercise.name === "Hill Walk") {
-      setWorkoutDuration(exercise.defaultReps);
-      setWorkoutCalories("120");
+    setWorkoutDuration(exercise.name === "Hill Walk" ? exercise.defaultReps : workoutDuration);
+  }
+
+  function selectWorkoutProgram(program: (typeof WORKOUT_PROGRAM_TEMPLATES)[number]) {
+    setWorkoutName(program.name);
+    setWorkoutDuration(program.duration);
+    setWorkoutKg("0");
+    setWorkoutReps(program.duration);
+    setWorkoutTries(String(program.exercises.length));
+    setWorkoutMode("Templates");
+    setStatus(`Selected ${program.name}`);
+  }
+
+  function saveCurrentWorkoutTemplate() {
+    const nextTemplate = {
+      name: workoutName || "Custom Workout",
+      emoji: "✦",
+      type: "Custom",
+      duration: workoutDuration || "30",
+      exercises: [buildWorkoutLogName()],
+      note: "Created by user from the workout logger."
+    };
+    setWorkoutTemplates((current) => [nextTemplate, ...current]);
+    setStatus(`${nextTemplate.name} saved as a workout template`);
+  }
+
+  async function shareWorkoutProgram(program = workoutTemplates[0]) {
+    if (!token) {
+      setStatus("Login first");
+      return;
     }
+    try {
+      setStatus("Sharing workout program...");
+      await createSocialPost(token, {
+        meal: {
+          name: `${program.emoji} ${program.name} workout program`,
+          calories: 1,
+          protein: 0,
+          carbs: 0,
+          fats: 0,
+          loggedAt: loggedAtForDate(activeDate)
+        },
+        caption: `${program.note} Plan: ${program.exercises.join(", ")}`,
+        visibility: "public",
+        privacy: { hideCalories: true, hideMeasurements: true }
+      });
+      await loadSocialFeed();
+      setStatus("Workout program shared to social feed");
+    } catch (error) {
+      setStatus(`Workout share unavailable: ${String(error)}`);
+    }
+  }
+
+  function estimateWorkoutCalories() {
+    const duration = toNumber(workoutDuration, 30);
+    const exercise = WORKOUT_EXERCISES.find((item) => item.name === workoutName);
+    const type = exercise?.type || "Strength";
+    const rate = type === "Cardio" ? 10 : type === "Recovery" ? 4 : type === "Core" ? 5 : 7;
+    const loadBonus = Math.min(90, Math.round(toNumber(workoutKg) * toNumber(workoutTries, 1) * 0.08));
+    return Math.max(1, Math.round(duration * rate + loadBonus));
   }
 
   function buildWorkoutLogName() {
@@ -1324,13 +1462,32 @@ export default function App() {
   }
 
   function renderAuthView() {
+    const isRegister = authMode === "register";
     return (
       <View style={styles.authScreen}>
         <View style={styles.logoCircle}>
           <Text style={styles.logoText}>HL</Text>
         </View>
-        <Text style={styles.authTitle}>Healthy Life, Happy Life</Text>
-        <Text style={styles.authSubtitle}>Your personal fitness companion</Text>
+        <Text style={styles.authTitle}>{isRegister ? "Create your wellness profile" : "Welcome back"}</Text>
+        <Text style={styles.authSubtitle}>
+          {isRegister ? "Register, set your body metrics, and get targets immediately." : "Log in to continue tracking."}
+        </Text>
+        <View style={styles.modeSwitch}>
+          {(["register", "login"] as const).map((mode) => {
+            const active = authMode === mode;
+            return (
+              <TouchableOpacity
+                key={mode}
+                style={[styles.modeSwitchButton, active ? styles.modeSwitchButtonActive : null]}
+                onPress={() => setAuthMode(mode)}
+              >
+                <Text style={[styles.modeSwitchText, active ? styles.modeSwitchTextActive : null]}>
+                  {mode === "register" ? "Create Account" : "Login"}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
         <TextInput style={styles.input} value={email} onChangeText={setEmail} placeholder="Email" />
         <TextInput
           style={styles.input}
@@ -1339,12 +1496,22 @@ export default function App() {
           placeholder="Password (min 8 chars)"
           secureTextEntry
         />
-        <TextInput style={styles.input} value={name} onChangeText={setName} placeholder="Name" />
-        <TouchableOpacity style={styles.fullButton} onPress={runLogin}>
-          <Text style={styles.buttonText}>Login</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.linkButton} onPress={runSignup}>
-          <Text style={styles.linkButtonText}>Create Account</Text>
+        {isRegister ? (
+          <View style={styles.authProfileCard}>
+            <TextInput style={styles.input} value={name} onChangeText={setName} placeholder="Name" />
+            <View style={styles.row}>
+              {renderDigitPicker("Age", onboarding.age, (value) => updateOnboardingField("age", value), 13, 100, 2)}
+              {renderDigitPicker("Height", onboarding.heightCm, (value) => updateOnboardingField("heightCm", value), 120, 230, 3, " cm")}
+            </View>
+            {renderDigitPicker("Weight", onboarding.weightKg, (value) => updateOnboardingField("weightKg", value), 35, 220, 3, " kg")}
+            <Text style={styles.fieldLabel}>Goal</Text>
+            {renderChoiceRow(GOAL_TYPES, onboarding.goalType, (value) => updateOnboardingField("goalType", value))}
+            <Text style={styles.fieldLabel}>Activity</Text>
+            {renderChoiceRow(ACTIVITY_LEVELS, onboarding.activityLevel, (value) => updateOnboardingField("activityLevel", value))}
+          </View>
+        ) : null}
+        <TouchableOpacity style={styles.fullButton} onPress={isRegister ? runSignup : runLogin}>
+          <Text style={styles.buttonText}>{isRegister ? "Create Account & Targets" : "Login"}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.linkButton} onPress={useDemoAccount}>
           <Text style={styles.smallButtonText}>Use Demo Login</Text>
@@ -1674,7 +1841,34 @@ export default function App() {
           )}
         </View>
         <View style={styles.card}>
-          <Text style={styles.section}>Quick Add</Text>
+          <View style={styles.headerRow}>
+            <Text style={styles.section}>Ready Meal Database</Text>
+            <TouchableOpacity style={styles.smallButton} onPress={searchFoodLibrary}>
+              <Text style={styles.smallButtonText}>Reload</Text>
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.small}>Choose from seeded foods and API-backed library items first; manual entry stays as a fallback.</Text>
+          <View style={styles.quickMealGrid}>
+            {libraryFoods.slice(0, 6).map((food) => (
+              <TouchableOpacity
+                key={`meal-ready-${food.id}`}
+                style={styles.quickMealChip}
+                onPress={() => addFoodItemToLog(food)}
+              >
+                <Text style={styles.quickMealTitle}>{food.name}</Text>
+                <Text style={styles.small}>{food.calories} kcal · {food.protein}g protein</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          {libraryFoods.length === 0 ? (
+            <View style={styles.noticeBox}>
+              <Text style={styles.itemTitle}>Food database not loaded yet</Text>
+              <Text style={styles.small}>Tap Reload or open Food Library to pull saved meals from the backend.</Text>
+            </View>
+          ) : null}
+        </View>
+        <View style={styles.card}>
+          <Text style={styles.section}>Manual Fallback</Text>
           <Text style={styles.fieldLabel}>Common meals</Text>
           <View style={styles.quickMealGrid}>
             {QUICK_MEALS.map((meal) => (
@@ -1951,9 +2145,25 @@ export default function App() {
           <TouchableOpacity style={styles.fullButton} onPress={shareLatestMeal}>
             <Text style={styles.buttonText}>Share Latest Meal</Text>
           </TouchableOpacity>
+          <TouchableOpacity style={styles.secondaryButton} onPress={() => shareWorkoutProgram(workoutTemplates[0])}>
+            <Text style={styles.secondaryButtonText}>Share Workout Program</Text>
+          </TouchableOpacity>
           <Text style={styles.small}>
-            Shared meals respect visibility and privacy controls. Copying adds the meal to your own log.
+            Shared meals and workout programs respect visibility and privacy controls. Copying adds meals to your log.
           </Text>
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.section}>Live Community</Text>
+          <View style={styles.resultsBlock}>
+            {DEMO_SOCIAL_PROGRAMS.map((post) => (
+              <View style={styles.listItem} key={post.title}>
+                <Text style={styles.itemTitle}>{post.title}</Text>
+                <Text style={styles.small}>{post.meta}</Text>
+                <Text style={styles.small}>{post.body}</Text>
+              </View>
+            ))}
+          </View>
         </View>
 
         <View style={styles.card}>
@@ -2045,6 +2255,29 @@ export default function App() {
         </View>
         {workoutMode === "Templates" ? (
           <>
+            <Text style={styles.fieldLabel}>Workout programs</Text>
+            <View style={styles.workoutPresetList}>
+              {workoutTemplates.map((program) => (
+                <TouchableOpacity
+                  key={`${program.name}-${program.duration}-${program.exercises.length}`}
+                  style={[styles.workoutPresetRow, workoutName === program.name ? styles.workoutPresetRowActive : null]}
+                  onPress={() => selectWorkoutProgram(program)}
+                >
+                  <Text style={styles.exerciseEmoji}>{program.emoji}</Text>
+                  <View style={styles.workoutPresetCopy}>
+                    <Text style={[styles.exerciseTitle, workoutName === program.name ? styles.exerciseTitleActive : null]}>
+                      {program.name}
+                    </Text>
+                    <Text style={[styles.small, workoutName === program.name ? styles.quickMealMetaActive : null]}>
+                      {program.duration} min · {program.type} · {program.exercises.join(", ")}
+                    </Text>
+                  </View>
+                  <TouchableOpacity style={styles.smallButton} onPress={() => shareWorkoutProgram(program)}>
+                    <Text style={styles.smallButtonText}>Share</Text>
+                  </TouchableOpacity>
+                </TouchableOpacity>
+              ))}
+            </View>
             <Text style={styles.fieldLabel}>Choose movement</Text>
             <View style={styles.workoutPresetList}>
               {WORKOUT_EXERCISES.map((exercise) => {
@@ -2089,13 +2322,14 @@ export default function App() {
         <Text style={styles.fieldLabel}>Duration</Text>
         {renderQuickValueRow(QUICK_WORKOUT_DURATIONS, workoutDuration, setWorkoutDuration, " min")}
         {renderDigitPicker("Duration", workoutDuration, setWorkoutDuration, 1, 240, 3, " min")}
-        <Text style={styles.fieldLabel}>Calories burned</Text>
-        {renderQuickValueRow(QUICK_WORKOUT_CALORIES, workoutCalories, setWorkoutCalories, " kcal")}
-        {renderDigitPicker("Calories burned", workoutCalories, setWorkoutCalories, 0, 2000, 4, " kcal")}
         <View style={styles.noticeBox}>
-          <Text style={styles.itemTitle}>Log preview</Text>
+          <Text style={styles.itemTitle}>Log preview · {workoutCalories} kcal estimated</Text>
           <Text style={styles.small}>{buildWorkoutLogName()}</Text>
+          <Text style={styles.small}>Calories are calculated from movement type, duration, load, and tries.</Text>
         </View>
+        <TouchableOpacity style={styles.secondaryButton} onPress={saveCurrentWorkoutTemplate}>
+          <Text style={styles.secondaryButtonText}>Save as Workout Template</Text>
+        </TouchableOpacity>
         <TouchableOpacity style={styles.fullButton} onPress={addWorkoutAndRefresh}>
           <Text style={styles.buttonText}>Save Workout</Text>
         </TouchableOpacity>
@@ -3254,6 +3488,14 @@ const styles = StyleSheet.create({
     color: "#6b7280",
     fontSize: 16,
     textAlign: "center"
+  },
+  authProfileCard: {
+    borderWidth: 1,
+    borderColor: "#dbeedd",
+    borderRadius: 22,
+    backgroundColor: "#ffffff",
+    padding: 14,
+    gap: 10
   },
   linkButton: {
     alignItems: "center",

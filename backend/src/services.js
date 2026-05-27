@@ -396,14 +396,31 @@ function listMeals(db, userId, date) {
   return meals;
 }
 
+const WORKOUT_CALORIE_RULES = [
+  { pattern: /run|hiit|cardio|5k|tempo/i, caloriesPerMinute: 10 },
+  { pattern: /walk|recovery|mobility|yoga|stretch/i, caloriesPerMinute: 4 },
+  { pattern: /leg|squat|deadlift|pull|push|bench|row|strength|full.body/i, caloriesPerMinute: 7 },
+  { pattern: /core|plank/i, caloriesPerMinute: 5 }
+];
+
+function estimateWorkoutCalories(name, durationMinutes) {
+  const rule = WORKOUT_CALORIE_RULES.find((item) => item.pattern.test(name));
+  const caloriesPerMinute = rule ? rule.caloriesPerMinute : 6;
+  return Math.max(1, Math.round(durationMinutes * caloriesPerMinute));
+}
+
 function addWorkout(db, userId, input) {
-  const { name, durationMinutes, caloriesBurned = 0, loggedAt } = input;
+  const { name, durationMinutes, loggedAt } = input;
   if (!isNonEmptyString(name, 140)) {
     throw createAppError("Invalid workout name", 400);
   }
   if (!isPositiveNumber(durationMinutes)) {
     throw createAppError("Invalid durationMinutes", 400);
   }
+  const caloriesBurned =
+    input.caloriesBurned === undefined || input.caloriesBurned === null
+      ? estimateWorkoutCalories(name, durationMinutes)
+      : input.caloriesBurned;
   if (!isNonNegativeNumber(caloriesBurned)) {
     throw createAppError("Invalid caloriesBurned", 400);
   }

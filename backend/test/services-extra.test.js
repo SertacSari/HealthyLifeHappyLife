@@ -196,6 +196,19 @@ test("daily recommendations return non-medical disclaimer and tips", () => {
   }
 });
 
+test("workout calories are estimated when omitted", () => {
+  const db = createDb();
+  const user = signup(db, { email: "auto-workout@example.com", password: "StrongPass123", name: "Auto" }, authConfig);
+
+  const workout = addWorkout(db, user.userId, {
+    name: "Push Day - Bench Press 30 kg x 8 reps x 3 tries",
+    durationMinutes: 45,
+    loggedAt: `${TEST_DATE}T17:00:00.000Z`
+  });
+
+  assert.equal(workout.caloriesBurned, 315);
+});
+
 test("daily recommendations explain low protein gap with structured fields", () => {
   const db = createDb();
   const user = signup(db, { email: "protein-gap@example.com", password: "StrongPass123", name: "Protein Gap" }, authConfig);
