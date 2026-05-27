@@ -182,11 +182,11 @@ const DEMO_EMAIL = "mvp@example.com";
 const DEMO_PASSWORD = "StrongPass123";
 const DEMO_NAME = "MVP User";
 const PRIMARY_NAV: Array<{ value: Tab; label: string; icon: string }> = [
-  { value: "dashboard", label: "Home", icon: "▥" },
-  { value: "meals", label: "Meals", icon: "◉" },
-  { value: "workouts", label: "Train", icon: "◆" },
-  { value: "coach", label: "Coach", icon: "✦" },
-  { value: "profile", label: "Profile", icon: "●" }
+  { value: "dashboard", label: "Home", icon: "🏠" },
+  { value: "meals", label: "Meals", icon: "🍽️" },
+  { value: "workouts", label: "Train", icon: "🏋️" },
+  { value: "social", label: "Social", icon: "👥" },
+  { value: "profile", label: "Profile", icon: "👤" }
 ];
 const SECONDARY_NAV: Array<{ value: Tab; label: string }> = [
   { value: "library", label: "Library" },
@@ -477,11 +477,13 @@ export default function App() {
   const [onboarding, setOnboarding] = useState<OnboardingData>(DEFAULT_ONBOARDING);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [onboardingStep, setOnboardingStep] = useState(0);
+  const [profilePanel, setProfilePanel] = useState<"overview" | "settings">("overview");
   const [checkInEnergy, setCheckInEnergy] = useState("Ok");
   const [checkInSoreness, setCheckInSoreness] = useState("Light");
   const [checkInSleep, setCheckInSleep] = useState("7");
   const [checkInNote, setCheckInNote] = useState("");
   const [checkInSaved, setCheckInSaved] = useState(false);
+  const [showCheckInEditor, setShowCheckInEditor] = useState(false);
   const [coachTimeAvailable, setCoachTimeAvailable] = useState("20");
   const [coachHunger, setCoachHunger] = useState("Medium");
   const [coachBudget, setCoachBudget] = useState("Medium");
@@ -570,6 +572,7 @@ export default function App() {
       setCheckInSleep(nextDailyCheckIn.sleepHours !== undefined ? String(nextDailyCheckIn.sleepHours) : "7");
       setCheckInNote(nextDailyCheckIn.notes || "");
       setCheckInSaved(true);
+      setShowCheckInEditor(false);
     } else {
       setCheckInSaved(false);
     }
@@ -895,8 +898,10 @@ export default function App() {
       });
       const nextRecommendation = await getWorkoutRecommendation(token, activeDate).catch(() => null);
       setWorkoutRecommendation(nextRecommendation);
+      setShowCheckInEditor(false);
       setStatus("Daily check-in saved");
     } catch (error) {
+      setShowCheckInEditor(false);
       setStatus(`Daily check-in saved locally. Sync unavailable: ${String(error)}`);
     }
   }
@@ -1811,25 +1816,40 @@ export default function App() {
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.section}>Daily Check-in</Text>
-          <Text style={styles.small}>A quick check-in makes workout and coach recommendations more relevant.</Text>
-          <Text style={styles.fieldLabel}>Energy</Text>
-          {renderChoiceRow(ENERGY_LEVELS, checkInEnergy, setCheckInEnergy)}
-          <Text style={styles.fieldLabel}>Soreness</Text>
-          {renderChoiceRow(SORENESS_LEVELS, checkInSoreness, setCheckInSoreness)}
-          <Text style={styles.fieldLabel}>Sleep</Text>
-          {renderQuickValueRow(QUICK_SLEEP_HOURS, checkInSleep, setCheckInSleep, "h")}
-          {renderStepper("Sleep hours", checkInSleep, setCheckInSleep, 0.5, 0, 14, "h")}
-          <TextInput
-            style={[styles.input, styles.multilineInput]}
-            value={checkInNote}
-            onChangeText={setCheckInNote}
-            placeholder="Short note"
-            multiline
-          />
-          <TouchableOpacity style={styles.fullButton} onPress={saveDailyCheckIn}>
-            <Text style={styles.buttonText}>{checkInSaved ? "Update Check-in" : "Save Check-in"}</Text>
-          </TouchableOpacity>
+          <View style={styles.headerRow}>
+            <Text style={styles.section}>Daily Check-in</Text>
+            <TouchableOpacity style={styles.smallButton} onPress={() => setShowCheckInEditor((current) => !current)}>
+              <Text style={styles.smallButtonText}>
+                {showCheckInEditor ? "Close" : checkInSaved ? "Edit Daily Check-in" : "Add Check-in"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.small}>
+            {checkInSaved
+              ? `Saved: ${checkInEnergy} energy, ${checkInSoreness.toLowerCase()} soreness, ${checkInSleep || "0"}h sleep.`
+              : "A quick check-in makes workout and coach recommendations more relevant."}
+          </Text>
+          {showCheckInEditor ? (
+            <>
+              <Text style={styles.fieldLabel}>Energy</Text>
+              {renderChoiceRow(ENERGY_LEVELS, checkInEnergy, setCheckInEnergy)}
+              <Text style={styles.fieldLabel}>Soreness</Text>
+              {renderChoiceRow(SORENESS_LEVELS, checkInSoreness, setCheckInSoreness)}
+              <Text style={styles.fieldLabel}>Sleep</Text>
+              {renderQuickValueRow(QUICK_SLEEP_HOURS, checkInSleep, setCheckInSleep, "h")}
+              {renderStepper("Sleep hours", checkInSleep, setCheckInSleep, 0.5, 0, 14, "h")}
+              <TextInput
+                style={[styles.input, styles.multilineInput]}
+                value={checkInNote}
+                onChangeText={setCheckInNote}
+                placeholder="Short note"
+                multiline
+              />
+              <TouchableOpacity style={styles.fullButton} onPress={saveDailyCheckIn}>
+                <Text style={styles.buttonText}>{checkInSaved ? "Update Check-in" : "Save Check-in"}</Text>
+              </TouchableOpacity>
+            </>
+          ) : null}
         </View>
 
         <View style={styles.card}>
@@ -2469,8 +2489,8 @@ export default function App() {
     return (
       <>
         <View style={styles.profileHero}>
-          <TouchableOpacity style={styles.settingsButton} onPress={() => setShowOnboarding((current) => !current)}>
-            <Text style={styles.headerIconText}>S</Text>
+          <TouchableOpacity style={styles.settingsButton} onPress={() => setProfilePanel("settings")}>
+            <Text style={styles.headerIconText}>⚙️</Text>
           </TouchableOpacity>
           <View style={styles.profileAvatar}>
             <Text style={styles.logoText}>P</Text>
@@ -2479,9 +2499,22 @@ export default function App() {
           <Text style={styles.authSubtitle}>Fitness enthusiast</Text>
         </View>
         <View style={styles.moreRow}>
-          {renderTabButton("social", "Social")}
+          <TouchableOpacity
+            style={[styles.tabButton, profilePanel === "overview" ? styles.tabButtonActive : null]}
+            onPress={() => setProfilePanel("overview")}
+          >
+            <Text style={[styles.tabText, profilePanel === "overview" ? styles.tabTextActive : null]}>Profile</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tabButton, profilePanel === "settings" ? styles.tabButtonActive : null]}
+            onPress={() => setProfilePanel("settings")}
+          >
+            <Text style={[styles.tabText, profilePanel === "settings" ? styles.tabTextActive : null]}>Settings</Text>
+          </TouchableOpacity>
           {renderTabButton("weekly", "Weekly Review")}
         </View>
+        {profilePanel === "overview" ? (
+        <>
         <View style={styles.card}>
           <Text style={styles.section}>Account Overview</Text>
           <View style={styles.overviewRow}>
@@ -2503,11 +2536,14 @@ export default function App() {
             </View>
           </View>
         </View>
+        </>
+        ) : (
+        <>
         <View style={styles.card}>
           <View style={styles.headerRow}>
-            <Text style={styles.section}>Onboarding</Text>
+            <Text style={styles.section}>Profile Settings</Text>
             <TouchableOpacity style={styles.smallButton} onPress={() => setShowOnboarding((current) => !current)}>
-              <Text style={styles.smallButtonText}>{showOnboarding ? "Hide" : "Edit"}</Text>
+              <Text style={styles.smallButtonText}>{showOnboarding ? "Hide Onboarding" : "Edit Onboarding"}</Text>
             </TouchableOpacity>
           </View>
           {isOnboardingComplete(onboarding) ? (
@@ -2553,6 +2589,8 @@ export default function App() {
             <Text style={styles.small}>No profile loaded yet.</Text>
           )}
         </View>
+        </>
+        )}
       </>
     );
   }
