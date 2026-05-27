@@ -30,6 +30,7 @@ import {
   getMe,
   getSummary,
   getSocialFeed,
+  commentOnSocialPost,
   copySocialPostToLog,
   likeSocialPost,
   listFoodItems,
@@ -504,6 +505,8 @@ export default function App() {
   const [weeklyReview, setWeeklyReview] = useState<CoachWeeklyReview | null>(null);
   const [socialFeed, setSocialFeed] = useState<SocialPost[]>([]);
   const [socialMode, setSocialMode] = useState<SocialMode>("Meals");
+  const [openedSocialPostId, setOpenedSocialPostId] = useState<number | null>(null);
+  const [socialCommentText, setSocialCommentText] = useState("");
   const [selectedShareMealId, setSelectedShareMealId] = useState<number | null>(null);
   const [selectedShareWorkoutName, setSelectedShareWorkoutName] = useState(WORKOUT_PROGRAM_TEMPLATES[0].name);
   const [sharedWorkoutPrograms, setSharedWorkoutPrograms] = useState(DEMO_SOCIAL_PROGRAMS);
@@ -1120,7 +1123,7 @@ export default function App() {
     try {
       setStatus("Loading social feed...");
       const posts = await getSocialFeed(token);
-      setSocialFeed(posts.slice(0, 3));
+      setSocialFeed(posts.slice(0, 12));
       setStatus(`Loaded ${posts.length} shared meals`);
     } catch (error) {
       setStatus(`Social feed unavailable: ${String(error)}`);
@@ -1245,6 +1248,28 @@ export default function App() {
       setStatus("Shared meal liked");
     } catch (error) {
       setStatus(`Like unavailable: ${String(error)}`);
+    }
+  }
+
+  async function commentSharedMeal(post: SocialPost) {
+    if (!token) {
+      setStatus("Login first");
+      return;
+    }
+    const text = socialCommentText.trim();
+    if (!text) {
+      setStatus("Write a comment first.");
+      return;
+    }
+    try {
+      setStatus("Adding comment...");
+      await commentOnSocialPost(token, post.id, text);
+      setSocialCommentText("");
+      await loadSocialFeed();
+      setOpenedSocialPostId(post.id);
+      setStatus("Comment added");
+    } catch (error) {
+      setStatus(`Comment unavailable: ${String(error)}`);
     }
   }
 
@@ -1711,7 +1736,7 @@ export default function App() {
     const workoutTarget = targets?.workouts || profile?.goalWorkoutsPerWeek || 1;
     return (
       <>
-        {renderScreenHeader("Today", `${activeDate} plan and progress`, "●", () => setTab("profile"))}
+        {renderScreenHeader("Today", "Your simple daily plan", "🏠", () => setTab("profile"))}
 
         <View style={styles.heroCard}>
           <View style={styles.headerRow}>
@@ -1736,15 +1761,15 @@ export default function App() {
           </View>
           <View style={styles.quickActionRow}>
             <TouchableOpacity style={styles.quickAction} onPress={() => setTab("meals")}>
-              <Text style={styles.quickActionTitle}>Log meal</Text>
+              <Text style={styles.quickActionTitle}>Meals</Text>
               <Text style={styles.small}>{summary?.mealsCount || 0} today</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.quickAction} onPress={() => setTab("workouts")}>
-              <Text style={styles.quickActionTitle}>Log workout</Text>
+              <Text style={styles.quickActionTitle}>Train</Text>
               <Text style={styles.small}>{summary?.workoutMinutes || 0} min</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.quickAction} onPress={() => setTab("coach")}>
-              <Text style={styles.quickActionTitle}>Ask coach</Text>
+              <Text style={styles.quickActionTitle}>Coach</Text>
               <Text style={styles.small}>{formatSourceLabel(recommendations?.source)}</Text>
             </TouchableOpacity>
           </View>
@@ -1816,16 +1841,6 @@ export default function App() {
             <Text style={styles.small}>No summary loaded yet.</Text>
           )}
         </View>
-
-        {targets ? (
-          <View style={styles.card}>
-            <View style={styles.headerRow}>
-              <Text style={styles.section}>Workout Goal</Text>
-              <Text style={styles.headerIconText}>W</Text>
-            </View>
-            {renderProgressCard("Workouts", summary?.workoutsCount || 0, targets.workouts || 1, "")}
-          </View>
-        ) : null}
 
         <View style={styles.card}>
           <View style={styles.headerRow}>
@@ -1915,18 +1930,19 @@ export default function App() {
   function renderMeals() {
     return (
       <>
-        {renderScreenHeader("Meals", "Log food and build reusable meals", "M", () => setTab("library"))}
-        <View style={styles.moreRow}>
-          {renderTabButton("library", "Food Library")}
-          {renderTabButton("templates", "Meal Templates")}
-        </View>
-        <View style={styles.card}>
-          <View style={styles.headerRow}>
-            <Text style={styles.section}>Today's Meals</Text>
-            <TouchableOpacity style={styles.smallButton} onPress={() => setTab("library")}>
-              <Text style={styles.smallButtonText}>Find foods</Text>
-            </TouchableOpacity>
+        {renderScreenHeader("Meals", "Log food and build reusable meals", "🍽️", () => setTab("library"))}
+        <TouchableOpacity style={styles.findFoodButton} onPress={() => setTab("library")}>
+          <Text style={styles.findFoodIcon}>🔎</Text>
+          <View style={styles.findFoodCopy}>
+            <Text style={styles.findFoodTitle}>Find foods</Text>
+            <Text style={styles.findFoodText}>Search the local database, pick grams, then add to today.</Text>
           </View>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.secondaryButton} onPress={() => setTab("templates")}>
+          <Text style={styles.secondaryButtonText}>Meal Templates</Text>
+        </TouchableOpacity>
+        <View style={styles.card}>
+          <Text style={styles.section}>Today's Meals</Text>
           {meals.length === 0 ? (
             <View style={styles.noticeBox}>
               <Text style={styles.itemTitle}>No meals logged for {activeDate}</Text>
@@ -2330,23 +2346,73 @@ export default function App() {
             <View style={styles.resultsBlock}>
               {socialFeed.map((post) => (
                 <View style={styles.listItem} key={`social-${post.id}`}>
-                  <Text style={styles.itemTitle}>{post.meal.name}</Text>
-                  <Text style={styles.small}>
-                    {post.author.name} | {post.visibility} | {post.likeCount} likes | {post.commentCount} comments
-                  </Text>
-                  {post.caption ? <Text style={styles.small}>{post.caption}</Text> : null}
-                  <Text style={styles.small}>
-                    {post.privacy.hideCalories ? "Calories hidden" : `${formatMetric(post.meal.calories)} cal`} |{" "}
-                    {formatMetric(post.meal.protein, "g")} protein
-                  </Text>
-                  <View style={styles.row}>
-                    <TouchableOpacity style={styles.button} onPress={() => likeSharedMeal(post)}>
-                      <Text style={styles.buttonText}>Like</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.button} onPress={() => copySharedMeal(post)}>
-                      <Text style={styles.buttonText}>Copy</Text>
-                    </TouchableOpacity>
-                  </View>
+                  <TouchableOpacity
+                    style={styles.sharePreview}
+                    onPress={() => setOpenedSocialPostId(openedSocialPostId === post.id ? null : post.id)}
+                  >
+                    <View style={styles.headerRow}>
+                      <View style={styles.shareTitleBlock}>
+                        <Text style={styles.itemTitle}>{post.meal.name}</Text>
+                        <Text style={styles.small}>
+                          {post.author.name} | {post.visibility} | {post.likeCount} likes | {post.commentCount} comments
+                        </Text>
+                      </View>
+                      <Text style={styles.presetChevron}>{openedSocialPostId === post.id ? "⌄" : "›"}</Text>
+                    </View>
+                    <Text style={styles.small}>
+                      {post.privacy.hideCalories ? "Calories hidden" : `${formatMetric(post.meal.calories)} cal`} |{" "}
+                      {formatMetric(post.meal.protein, "g")} protein
+                    </Text>
+                  </TouchableOpacity>
+                  {openedSocialPostId === post.id ? (
+                    <View style={styles.shareDetail}>
+                      {post.caption ? <Text style={styles.small}>{post.caption}</Text> : null}
+                      <View style={styles.macroRow}>
+                        <View style={styles.macroBox}>
+                          <Text style={styles.metricLabel}>Protein</Text>
+                          <Text style={styles.itemTitle}>{formatMetric(post.meal.protein, "g")}</Text>
+                        </View>
+                        <View style={styles.macroBox}>
+                          <Text style={styles.metricLabel}>Carbs</Text>
+                          <Text style={styles.itemTitle}>{formatMetric(post.meal.carbs, "g")}</Text>
+                        </View>
+                        <View style={styles.macroBox}>
+                          <Text style={styles.metricLabel}>Fats</Text>
+                          <Text style={styles.itemTitle}>{formatMetric(post.meal.fats, "g")}</Text>
+                        </View>
+                      </View>
+                      <View style={styles.row}>
+                        <TouchableOpacity style={styles.button} onPress={() => likeSharedMeal(post)}>
+                          <Text style={styles.buttonText}>Like</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.button} onPress={() => copySharedMeal(post)}>
+                          <Text style={styles.buttonText}>Copy to Log</Text>
+                        </TouchableOpacity>
+                      </View>
+                      <Text style={styles.fieldLabel}>Comments</Text>
+                      {post.comments.length > 0 ? (
+                        post.comments.slice(-3).map((comment) => (
+                          <View style={styles.commentBubble} key={comment.id}>
+                            <Text style={styles.itemTitle}>{comment.author.name}</Text>
+                            <Text style={styles.small}>{comment.text}</Text>
+                          </View>
+                        ))
+                      ) : (
+                        <Text style={styles.small}>No comments yet.</Text>
+                      )}
+                      <View style={styles.row}>
+                        <TextInput
+                          style={[styles.input, styles.searchInput]}
+                          value={socialCommentText}
+                          onChangeText={setSocialCommentText}
+                          placeholder="Write a comment"
+                        />
+                        <TouchableOpacity style={styles.compactButton} onPress={() => commentSharedMeal(post)}>
+                          <Text style={styles.buttonText}>Post</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  ) : null}
                 </View>
               ))}
             </View>
@@ -2409,20 +2475,20 @@ export default function App() {
     const workoutBurn = summary?.totalCaloriesOut || workouts.reduce((total, item) => total + item.caloriesBurned, 0);
     return (
       <>
-      {renderScreenHeader("Workout", "Structured training and exact set logging", "◆")}
+      {renderScreenHeader("Workout", "Structured training and exact set logging", "🏋️")}
       <View style={styles.trainingStatsRow}>
         <View style={styles.trainingStatCard}>
-          <Text style={styles.trainingStatIcon}>◷</Text>
+          <Text style={styles.trainingStatIcon}>⏱️</Text>
           <Text style={styles.trainingStatValue}>{workoutMinutes}</Text>
           <Text style={styles.metricLabel}>minutes</Text>
         </View>
         <View style={styles.trainingStatCard}>
-          <Text style={styles.trainingStatIcon}>▲</Text>
+          <Text style={styles.trainingStatIcon}>🔥</Text>
           <Text style={styles.trainingStatValue}>{workoutBurn}</Text>
           <Text style={styles.metricLabel}>kcal burned</Text>
         </View>
         <View style={styles.trainingStatCard}>
-          <Text style={styles.trainingStatIcon}>◆</Text>
+          <Text style={styles.trainingStatIcon}>💪</Text>
           <Text style={styles.trainingStatValue}>{workouts.length}</Text>
           <Text style={styles.metricLabel}>sessions</Text>
         </View>
@@ -2613,9 +2679,6 @@ export default function App() {
     return (
       <>
         <View style={styles.profileHero}>
-          <TouchableOpacity style={styles.settingsButton} onPress={() => setProfilePanel("settings")}>
-            <Text style={styles.headerIconText}>⚙️</Text>
-          </TouchableOpacity>
           <View style={styles.profileAvatar}>
             <Text style={styles.logoText}>P</Text>
           </View>
@@ -3160,10 +3223,47 @@ const styles = StyleSheet.create({
   compactButton: {
     backgroundColor: "#49b84f",
     borderRadius: 18,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingHorizontal: 18,
+    paddingVertical: 13,
     alignItems: "center",
-    justifyContent: "center"
+    justifyContent: "center",
+    minHeight: 50
+  },
+  findFoodButton: {
+    borderRadius: 22,
+    padding: 16,
+    backgroundColor: "#49b84f",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    shadowColor: "#0f172a",
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 }
+  },
+  findFoodIcon: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: "#ffffff",
+    overflow: "hidden",
+    textAlign: "center",
+    textAlignVertical: "center",
+    fontSize: 22
+  },
+  findFoodCopy: {
+    flex: 1,
+    gap: 2
+  },
+  findFoodTitle: {
+    color: "#ffffff",
+    fontSize: 18,
+    fontWeight: "900"
+  },
+  findFoodText: {
+    color: "#ecfdf5",
+    fontSize: 12,
+    fontWeight: "700"
   },
   buttonDanger: {
     flex: 1,
@@ -3238,7 +3338,29 @@ const styles = StyleSheet.create({
     borderColor: "#e5e7eb",
     borderRadius: 18,
     padding: 12,
-    backgroundColor: "#f8fafc"
+    backgroundColor: "#f8fafc",
+    gap: 10
+  },
+  sharePreview: {
+    gap: 8
+  },
+  shareTitleBlock: {
+    flex: 1,
+    gap: 2
+  },
+  shareDetail: {
+    borderTopWidth: 1,
+    borderTopColor: "#e5e7eb",
+    paddingTop: 10,
+    gap: 10
+  },
+  commentBubble: {
+    borderRadius: 14,
+    backgroundColor: "#ffffff",
+    borderWidth: 1,
+    borderColor: "#edf2f7",
+    padding: 10,
+    gap: 2
   },
   coachCard: {
     borderWidth: 1,
@@ -3417,10 +3539,10 @@ const styles = StyleSheet.create({
   digitPicker: {
     flex: 1,
     borderWidth: 1,
-    borderColor: "#dbeedd",
-    borderRadius: 18,
+    borderColor: "#e2e8f0",
+    borderRadius: 22,
     padding: 12,
-    backgroundColor: "#f8fbfd",
+    backgroundColor: "#ffffff",
     gap: 10
   },
   digitPickerValue: {
@@ -3431,37 +3553,39 @@ const styles = StyleSheet.create({
   digitRow: {
     flexDirection: "row",
     justifyContent: "center",
-    gap: 8
+    gap: 6,
+    borderRadius: 18,
+    backgroundColor: "#f8fbfd",
+    paddingVertical: 8
   },
   digitColumn: {
     alignItems: "center",
     gap: 4
   },
   digitButton: {
-    width: 34,
+    width: 36,
     height: 24,
     borderRadius: 12,
-    backgroundColor: "#e8f7ea",
-    borderWidth: 1,
-    borderColor: "#bfe7c4",
+    backgroundColor: "#f1f5f9",
+    borderWidth: 0,
     alignItems: "center",
     justifyContent: "center"
   },
   digitButtonText: {
-    color: "#2f7d32",
+    color: "#64748b",
     fontSize: 16,
     fontWeight: "900",
     lineHeight: 18
   },
   digitInput: {
-    width: 34,
-    height: 42,
-    borderRadius: 12,
+    width: 36,
+    height: 50,
+    borderRadius: 14,
     backgroundColor: "#ffffff",
     borderWidth: 1,
-    borderColor: "#dbeedd",
+    borderColor: "#49b84f",
     color: "#0f172a",
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: "900",
     textAlign: "center"
   },
