@@ -457,6 +457,7 @@ export default function App() {
   const [libraryQuery, setLibraryQuery] = useState("greek yogurt");
   const [libraryFilter, setLibraryFilter] = useState("All");
   const [libraryFoods, setLibraryFoods] = useState<FoodItem[]>([]);
+  const [foodGramSelections, setFoodGramSelections] = useState<Record<number, string>>({});
 
   const [workoutName, setWorkoutName] = useState("Squat");
   const [workoutKg, setWorkoutKg] = useState("40");
@@ -489,6 +490,9 @@ export default function App() {
   const [savedCoachPlan, setSavedCoachPlan] = useState("");
   const [weeklyReview, setWeeklyReview] = useState<CoachWeeklyReview | null>(null);
   const [socialFeed, setSocialFeed] = useState<SocialPost[]>([]);
+  const [selectedShareMealId, setSelectedShareMealId] = useState<number | null>(null);
+  const [sharedWorkoutPrograms, setSharedWorkoutPrograms] = useState(DEMO_SOCIAL_PROGRAMS);
+  const [waterMl, setWaterMl] = useState(0);
   const [mealTemplates, setMealTemplates] = useState<MealTemplate[]>([]);
   const [templateName, setTemplateName] = useState("Demo Protein Meal");
   const [templateMealType, setTemplateMealType] = useState("lunch");
@@ -744,6 +748,7 @@ export default function App() {
       setStatus("Adding food item to log...");
       await createMealFromFoodItem(token, {
         foodItemId: food.id,
+        servingMultiplier: getFoodServingMultiplier(food),
         loggedAt: loggedAtForDate(activeDate)
       });
       await hydrateApp(token);
@@ -751,6 +756,37 @@ export default function App() {
     } catch (error) {
       setStatus(`Food item add failed. Use manual entry fallback: ${String(error)}`);
     }
+  }
+
+  function getFoodBaseGrams(food: FoodItem) {
+    const serving = food.servingSize || "";
+    const aboutMatch = serving.match(/about\s+(\d+(?:\.\d+)?)\s*g/i);
+    const gramMatch = serving.match(/(\d+(?:\.\d+)?)\s*g/i);
+    const value = aboutMatch?.[1] || gramMatch?.[1];
+    return value ? Math.max(1, Number(value)) : 100;
+  }
+
+  function getFoodSelectedGrams(food: FoodItem) {
+    return toNumber(foodGramSelections[food.id], getFoodBaseGrams(food));
+  }
+
+  function getFoodServingMultiplier(food: FoodItem) {
+    return Number((getFoodSelectedGrams(food) / getFoodBaseGrams(food)).toFixed(3));
+  }
+
+  function getScaledFood(food: FoodItem) {
+    const multiplier = getFoodServingMultiplier(food);
+    return {
+      calories: Math.round(food.calories * multiplier),
+      protein: Number((food.protein * multiplier).toFixed(1)),
+      carbs: Number((food.carbs * multiplier).toFixed(1)),
+      fats: Number((food.fats * multiplier).toFixed(1))
+    };
+  }
+
+  function getWaterTargetMl() {
+    const weight = profile?.weightKg || toNumber(onboarding.weightKg, 75);
+    return Math.round(weight * 35);
   }
 
   async function addWorkoutAndRefresh() {
@@ -1138,13 +1174,13 @@ export default function App() {
     }
   }
 
-  async function shareLatestMeal() {
+  async function shareSelectedMeal() {
     if (!token) {
       setStatus("Login first");
       return;
     }
-    const latestMeal = meals[0];
-    if (!latestMeal) {
+    const selectedMeal = meals.find((meal) => meal.id === selectedShareMealId) || meals[0];
+    if (!selectedMeal) {
       setStatus("Add or copy a meal first, then share it.");
       setTab("meals");
       return;
@@ -1153,14 +1189,14 @@ export default function App() {
       setStatus("Sharing meal...");
       await createSocialPost(token, {
         meal: {
-          name: latestMeal.name,
-          calories: latestMeal.calories,
-          protein: latestMeal.protein,
-          carbs: latestMeal.carbs,
-          fats: latestMeal.fats,
-          loggedAt: latestMeal.loggedAt
+          name: selectedMeal.name,
+          calories: selectedMeal.calories,
+          protein: selectedMeal.protein,
+          carbs: selectedMeal.carbs,
+          fats: selectedMeal.fats,
+          loggedAt: selectedMeal.loggedAt
         },
-        caption: "Demo meal share",
+        caption: `Shared from today's log: ${selectedMeal.name}`,
         visibility: "public",
         privacy: { hideCalories: false, hideMeasurements: true }
       });
@@ -1247,8 +1283,13 @@ export default function App() {
   }
 
   function saveCurrentWorkoutTemplate() {
+    const templateName = workoutName || "Custom Workout";
+    if (workoutTemplates.some((template) => template.name.toLowerCase() === templateName.toLowerCase())) {
+      setStatus("It is already added.");
+      return;
+    }
     const nextTemplate = {
-      name: workoutName || "Custom Workout",
+      name: templateName,
       emoji: "✦",
       type: "Custom",
       duration: workoutDuration || "30",
@@ -1266,6 +1307,14 @@ export default function App() {
     }
     try {
       setStatus("Sharing workout program...");
+      setSharedWorkoutPrograms((current) => [
+        {
+          title: `You shared ${program.name}`,
+          meta: "just now · public · workout program",
+          body: `${program.note} Plan: ${program.exercises.join(", ")}`
+        },
+        ...current
+      ]);
       await createSocialPost(token, {
         meal: {
           name: `${program.emoji} ${program.name} workout program`,
@@ -1623,8 +1672,8 @@ export default function App() {
       targets && summary ? Math.max(0, targets.calories - summary.totalCaloriesIn) : null;
     const primaryCoachTip = recommendations?.tips[0];
     const calorieTarget = targets?.calories || 0;
-    const waterTargetMl = 2700;
-    const waterCurrentMl = Math.round(clampProgress(toNumber(checkInSleep, 7) / 8) * waterTargetMl);
+    const waterTargetMl = getWaterTargetMl();
+    const waterCurrentMl = waterMl;
     const workoutTarget = targets?.workouts || profile?.goalWorkoutsPerWeek || 1;
     return (
       <>
@@ -1648,7 +1697,7 @@ export default function App() {
           </View>
           <View style={styles.dashboardDialRow}>
             {renderProgressDial("Calories", summary?.totalCaloriesIn || 0, calorieTarget, "#49b84f")}
-            {renderProgressDial("Recovery", waterCurrentMl, waterTargetMl, "#0f766e", " ml")}
+            {renderProgressDial("Water", waterCurrentMl, waterTargetMl, "#0f766e", " ml")}
             {renderProgressDial("Training", summary?.workoutsCount || 0, workoutTarget, "#2f7d32")}
           </View>
           <View style={styles.quickActionRow}>
@@ -1745,6 +1794,23 @@ export default function App() {
         ) : null}
 
         <View style={styles.card}>
+          <View style={styles.headerRow}>
+            <Text style={styles.section}>Hydration</Text>
+            <Text style={styles.sourcePill}>{waterTargetMl} ml target</Text>
+          </View>
+          {renderProgressCard("Water consumed", waterMl, waterTargetMl, " ml")}
+          <View style={styles.row}>
+            <TouchableOpacity style={styles.button} onPress={() => setWaterMl((current) => Math.max(0, current - 250))}>
+              <Text style={styles.buttonText}>-250 ml</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.button} onPress={() => setWaterMl((current) => current + 250)}>
+              <Text style={styles.buttonText}>+250 ml</Text>
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.small}>Target uses a general wellness estimate of 35 ml per kg body weight.</Text>
+        </View>
+
+        <View style={styles.card}>
           <Text style={styles.section}>Daily Check-in</Text>
           <Text style={styles.small}>A quick check-in makes workout and coach recommendations more relevant.</Text>
           <Text style={styles.fieldLabel}>Energy</Text>
@@ -1801,6 +1867,10 @@ export default function App() {
     return (
       <>
         {renderScreenHeader("Meals", "Log food and build reusable meals", "M", () => setTab("library"))}
+        <View style={styles.moreRow}>
+          {renderTabButton("library", "Food Library")}
+          {renderTabButton("templates", "Meal Templates")}
+        </View>
         <View style={styles.card}>
           <View style={styles.headerRow}>
             <Text style={styles.section}>Today's Meals</Text>
@@ -1849,16 +1919,21 @@ export default function App() {
           </View>
           <Text style={styles.small}>Choose from seeded foods and API-backed library items first; manual entry stays as a fallback.</Text>
           <View style={styles.quickMealGrid}>
-            {libraryFoods.slice(0, 6).map((food) => (
-              <TouchableOpacity
-                key={`meal-ready-${food.id}`}
-                style={styles.quickMealChip}
-                onPress={() => addFoodItemToLog(food)}
-              >
-                <Text style={styles.quickMealTitle}>{food.name}</Text>
-                <Text style={styles.small}>{food.calories} kcal · {food.protein}g protein</Text>
-              </TouchableOpacity>
-            ))}
+            {libraryFoods.slice(0, 6).map((food) => {
+              const scaled = getScaledFood(food);
+              return (
+                <TouchableOpacity
+                  key={`meal-ready-${food.id}`}
+                  style={styles.quickMealChip}
+                  onPress={() => addFoodItemToLog(food)}
+                >
+                  <Text style={styles.quickMealTitle}>{food.name}</Text>
+                  <Text style={styles.small}>
+                    {getFoodSelectedGrams(food)}g · {scaled.calories} kcal · {scaled.protein}g protein
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
           {libraryFoods.length === 0 ? (
             <View style={styles.noticeBox}>
@@ -1938,12 +2013,13 @@ export default function App() {
   }
 
   function useFoodItemForMeal(food: FoodItem) {
+    const scaled = getScaledFood(food);
     setMealName(food.brand ? `${food.brand} ${food.name}` : food.name);
-    setMealCalories(String(food.calories));
-    setMealProtein(String(food.protein));
-    setMealCarbs(String(food.carbs));
-    setMealFats(String(food.fats));
-    setStatus(`Selected ${food.name}`);
+    setMealCalories(String(scaled.calories));
+    setMealProtein(String(scaled.protein));
+    setMealCarbs(String(scaled.carbs));
+    setMealFats(String(scaled.fats));
+    setStatus(`Selected ${food.name} at ${getFoodSelectedGrams(food)}g`);
   }
 
   function renderFoodLibrary() {
@@ -1974,25 +2050,35 @@ export default function App() {
           </View>
         ) : (
           <View style={styles.resultsBlock}>
-            {visibleFoods.map((item) => (
+            {visibleFoods.map((item) => {
+              const scaled = getScaledFood(item);
+              return (
               <View style={styles.mealCard} key={`library-${item.id}`}>
                 <Text style={styles.itemTitle}>{item.brand ? `${item.brand} ${item.name}` : item.name}</Text>
                 <Text style={styles.small}>
-                  {item.servingSize || item.category} | kcal {item.calories} | P/C/F {item.protein}/
-                  {item.carbs}/{item.fats}
+                  Base: {item.servingSize || item.category}. Selected {getFoodSelectedGrams(item)}g.
                 </Text>
+                {renderDigitPicker(
+                  "Grams",
+                  String(getFoodSelectedGrams(item)),
+                  (value) => setFoodGramSelections((current) => ({ ...current, [item.id]: value })),
+                  1,
+                  999,
+                  3,
+                  "g"
+                )}
                 <View style={styles.macroRow}>
                   <View style={styles.macroBox}>
                     <Text style={styles.metricLabel}>kcal</Text>
-                    <Text style={styles.itemTitle}>{item.calories}</Text>
+                    <Text style={styles.itemTitle}>{scaled.calories}</Text>
                   </View>
                   <View style={styles.macroBox}>
                     <Text style={styles.metricLabel}>Protein</Text>
-                    <Text style={styles.itemTitle}>{item.protein}g</Text>
+                    <Text style={styles.itemTitle}>{scaled.protein}g</Text>
                   </View>
                   <View style={styles.macroBox}>
                     <Text style={styles.metricLabel}>Carbs</Text>
-                    <Text style={styles.itemTitle}>{item.carbs}g</Text>
+                    <Text style={styles.itemTitle}>{scaled.carbs}g</Text>
                   </View>
                 </View>
                 <View style={styles.row}>
@@ -2004,7 +2090,8 @@ export default function App() {
                   </TouchableOpacity>
                 </View>
               </View>
-            ))}
+              );
+            })}
           </View>
         )}
       </View>
@@ -2142,8 +2229,27 @@ export default function App() {
               <Text style={styles.smallButtonText}>Refresh</Text>
             </TouchableOpacity>
           </View>
-          <TouchableOpacity style={styles.fullButton} onPress={shareLatestMeal}>
-            <Text style={styles.buttonText}>Share Latest Meal</Text>
+          <Text style={styles.fieldLabel}>Choose meal to share</Text>
+          {meals.length > 0 ? (
+            <View style={styles.segmentWrap}>
+              {meals.map((meal) => {
+                const selected = (selectedShareMealId || meals[0]?.id) === meal.id;
+                return (
+                  <TouchableOpacity
+                    key={`share-meal-${meal.id}`}
+                    style={[styles.pillButton, selected ? styles.pillButtonActive : null]}
+                    onPress={() => setSelectedShareMealId(meal.id)}
+                  >
+                    <Text style={[styles.pillText, selected ? styles.pillTextActive : null]}>{meal.name}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          ) : (
+            <Text style={styles.small}>No meals logged today yet.</Text>
+          )}
+          <TouchableOpacity style={styles.fullButton} onPress={shareSelectedMeal}>
+            <Text style={styles.buttonText}>Share Selected Meal</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.secondaryButton} onPress={() => shareWorkoutProgram(workoutTemplates[0])}>
             <Text style={styles.secondaryButtonText}>Share Workout Program</Text>
@@ -2156,7 +2262,7 @@ export default function App() {
         <View style={styles.card}>
           <Text style={styles.section}>Live Community</Text>
           <View style={styles.resultsBlock}>
-            {DEMO_SOCIAL_PROGRAMS.map((post) => (
+            {sharedWorkoutPrograms.map((post) => (
               <View style={styles.listItem} key={post.title}>
                 <Text style={styles.itemTitle}>{post.title}</Text>
                 <Text style={styles.small}>{post.meta}</Text>
@@ -2358,6 +2464,8 @@ export default function App() {
   }
 
   function renderProfile() {
+    const recommendedTargets = estimateNutritionTargets(profile, summary, onboarding, nutritionTargets);
+    const recommendedCalories = recommendedTargets?.calories || buildOnboardingPayload(onboarding, profileName || name, name).goalCalories || 2200;
     return (
       <>
         <View style={styles.profileHero}>
@@ -2369,6 +2477,10 @@ export default function App() {
           </View>
           <Text style={styles.profileName}>{profileName || name || "MVP User"}</Text>
           <Text style={styles.authSubtitle}>Fitness enthusiast</Text>
+        </View>
+        <View style={styles.moreRow}>
+          {renderTabButton("social", "Social")}
+          {renderTabButton("weekly", "Weekly Review")}
         </View>
         <View style={styles.card}>
           <Text style={styles.section}>Account Overview</Text>
@@ -2417,6 +2529,15 @@ export default function App() {
             onChangeText={setProfileName}
             placeholder="Display name"
           />
+          <View style={styles.noticeBox}>
+            <Text style={styles.itemTitle}>Recommended target: {recommendedCalories} kcal</Text>
+            <Text style={styles.small}>
+              Based on height, weight, weekly workout goal, activity level, and goal using the TDEE calculator.
+            </Text>
+            <TouchableOpacity style={styles.secondaryButton} onPress={() => setGoalCalories(String(recommendedCalories))}>
+              <Text style={styles.secondaryButtonText}>Use Recommended Calories</Text>
+            </TouchableOpacity>
+          </View>
           <Text style={styles.fieldLabel}>Goal calories</Text>
           {renderQuickValueRow(QUICK_CALORIE_TARGETS, goalCalories, setGoalCalories, " kcal")}
           {renderDigitPicker("Daily calorie target", goalCalories, setGoalCalories, 1200, 5000, 4, " kcal")}
@@ -2687,8 +2808,6 @@ export default function App() {
           renderAuthView()
         ) : (
           <>
-            {renderMoreScreens()}
-
             {tab === "dashboard" ? renderDashboard() : null}
             {tab === "meals" ? renderMeals() : null}
             {tab === "library" ? renderFoodLibrary() : null}
