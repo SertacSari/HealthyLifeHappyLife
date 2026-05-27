@@ -166,18 +166,23 @@ const WORKOUT_PROGRAM_TEMPLATES = [
 ];
 const DEMO_SOCIAL_PROGRAMS = [
   {
+    id: 1,
     title: "Ayse shared Push Day",
-    meta: "42 likes · 8 copied · friends",
+    author: "Ayse",
+    visibility: "friends",
+    likeCount: 42,
+    commentCount: 2,
+    comments: ["Good campus gym plan.", "Saving this for Monday."],
     body: "Bench Press, Shoulder Press, Incline Push-up, Triceps Dip. Good for a 60 min campus gym session."
   },
   {
-    title: "Mert copied Chicken Rice Bowl",
-    meta: "31 likes · 5 comments · public",
-    body: "High-protein lunch that fits a student budget. Copy-to-log keeps macros private by default."
-  },
-  {
+    id: 2,
     title: "Zeynep shared Leg Day",
-    meta: "27 likes · 4 copied · public",
+    author: "Zeynep",
+    visibility: "public",
+    likeCount: 27,
+    commentCount: 1,
+    comments: ["The RDL cue helped."],
     body: "Squat, RDL, Lunge, Calf Raise. Estimated calories are handled by the app."
   }
 ];
@@ -468,6 +473,7 @@ export default function App() {
   const [libraryQuery, setLibraryQuery] = useState("greek yogurt");
   const [libraryFilter, setLibraryFilter] = useState("All");
   const [libraryFoods, setLibraryFoods] = useState<FoodItem[]>([]);
+  const [selectedLibraryFoodId, setSelectedLibraryFoodId] = useState<number | null>(null);
   const [foodGramSelections, setFoodGramSelections] = useState<Record<number, string>>({});
 
   const [workoutName, setWorkoutName] = useState("Squat");
@@ -505,8 +511,11 @@ export default function App() {
   const [weeklyReview, setWeeklyReview] = useState<CoachWeeklyReview | null>(null);
   const [socialFeed, setSocialFeed] = useState<SocialPost[]>([]);
   const [socialMode, setSocialMode] = useState<SocialMode>("Meals");
+  const [socialSearchQuery, setSocialSearchQuery] = useState("");
   const [openedSocialPostId, setOpenedSocialPostId] = useState<number | null>(null);
+  const [openedWorkoutShareId, setOpenedWorkoutShareId] = useState<number | null>(null);
   const [socialCommentText, setSocialCommentText] = useState("");
+  const [workoutCommentText, setWorkoutCommentText] = useState("");
   const [selectedShareMealId, setSelectedShareMealId] = useState<number | null>(null);
   const [selectedShareWorkoutName, setSelectedShareWorkoutName] = useState(WORKOUT_PROGRAM_TEMPLATES[0].name);
   const [sharedWorkoutPrograms, setSharedWorkoutPrograms] = useState(DEMO_SOCIAL_PROGRAMS);
@@ -761,6 +770,7 @@ export default function App() {
       setStatus("Searching food library...");
       const results = await listFoodItems(token, { query: libraryQuery });
       setLibraryFoods(results);
+      setSelectedLibraryFoodId(null);
       setStatus(`Food library found ${results.length} saved foods`);
     } catch (error) {
       setStatus(String(error));
@@ -1273,6 +1283,42 @@ export default function App() {
     }
   }
 
+  function isWorkoutSocialPost(post: SocialPost) {
+    return `${post.meal.name} ${post.caption}`.toLowerCase().includes("workout program");
+  }
+
+  function socialSearchMatches(value: string) {
+    const query = socialSearchQuery.trim().toLowerCase();
+    return !query || value.toLowerCase().includes(query);
+  }
+
+  function likeWorkoutShare(postId: number) {
+    setSharedWorkoutPrograms((current) =>
+      current.map((post) =>
+        post.id === postId ? { ...post, likeCount: post.likeCount + 1 } : post
+      )
+    );
+    setStatus("Workout program liked");
+  }
+
+  function commentWorkoutShare(postId: number) {
+    const text = workoutCommentText.trim();
+    if (!text) {
+      setStatus("Write a comment first.");
+      return;
+    }
+    setSharedWorkoutPrograms((current) =>
+      current.map((post) =>
+        post.id === postId
+          ? { ...post, comments: [...post.comments, text], commentCount: post.commentCount + 1 }
+          : post
+      )
+    );
+    setWorkoutCommentText("");
+    setOpenedWorkoutShareId(postId);
+    setStatus("Workout comment added");
+  }
+
   useEffect(() => {
     if (!token) {
       return;
@@ -1368,27 +1414,19 @@ export default function App() {
       setStatus("Sharing workout program...");
       setSharedWorkoutPrograms((current) => [
         {
+          id: Date.now(),
           title: `You shared ${selectedProgram.name}`,
-          meta: "just now · public · workout program",
+          author: profileName || name || "You",
+          visibility: "public",
+          likeCount: 0,
+          commentCount: 0,
+          comments: [],
           body: `${selectedProgram.note} Plan: ${selectedProgram.exercises.join(", ")}`
         },
         ...current
       ]);
-      await createSocialPost(token, {
-        meal: {
-          name: `${selectedProgram.emoji} ${selectedProgram.name} workout program`,
-          calories: 1,
-          protein: 0,
-          carbs: 0,
-          fats: 0,
-          loggedAt: loggedAtForDate(activeDate)
-        },
-        caption: `${selectedProgram.note} Plan: ${selectedProgram.exercises.join(", ")}`,
-        visibility: "public",
-        privacy: { hideCalories: true, hideMeasurements: true }
-      });
-      await loadSocialFeed();
-      setStatus("Workout program shared to social feed");
+      setSocialMode("Workouts");
+      setStatus("Workout program shared to workout community");
     } catch (error) {
       setStatus(`Workout share unavailable: ${String(error)}`);
     }
@@ -1651,9 +1689,11 @@ export default function App() {
           <Text style={styles.screenTitle}>{title}</Text>
           <Text style={styles.screenSubtitle}>{subtitle}</Text>
         </View>
-        <TouchableOpacity style={styles.headerIconButton} onPress={action || refreshAll}>
-          <Text style={styles.headerIconButtonText}>{icon}</Text>
-        </TouchableOpacity>
+        {action ? (
+          <TouchableOpacity style={styles.headerIconButton} onPress={action}>
+            <Text style={styles.headerIconButtonText}>{icon}</Text>
+          </TouchableOpacity>
+        ) : null}
       </View>
     );
   }
@@ -1736,7 +1776,7 @@ export default function App() {
     const workoutTarget = targets?.workouts || profile?.goalWorkoutsPerWeek || 1;
     return (
       <>
-        {renderScreenHeader("Today", "Your simple daily plan", "🏠", () => setTab("profile"))}
+        {renderScreenHeader("Today", "Your simple daily plan", "🏠")}
 
         <View style={styles.heroCard}>
           <View style={styles.headerRow}>
@@ -1930,7 +1970,7 @@ export default function App() {
   function renderMeals() {
     return (
       <>
-        {renderScreenHeader("Meals", "Log food and build reusable meals", "🍽️", () => setTab("library"))}
+        {renderScreenHeader("Meals", "Log food and build reusable meals", "🍽️")}
         <TouchableOpacity style={styles.findFoodButton} onPress={() => setTab("library")}>
           <Text style={styles.findFoodIcon}>🔎</Text>
           <View style={styles.findFoodCopy}>
@@ -1946,7 +1986,7 @@ export default function App() {
           {meals.length === 0 ? (
             <View style={styles.noticeBox}>
               <Text style={styles.itemTitle}>No meals logged for {activeDate}</Text>
-              <Text style={styles.small}>Start with the local food library, then use manual entry or FatSecret fallback when needed.</Text>
+              <Text style={styles.small}>Tap Find foods, choose a meal, adjust grams, and add it to today.</Text>
             </View>
           ) : (
             meals.map((item) => (
@@ -1975,97 +2015,25 @@ export default function App() {
             ))
           )}
         </View>
-        <View style={styles.card}>
-          <View style={styles.headerRow}>
-            <Text style={styles.section}>Ready Meal Database</Text>
-            <TouchableOpacity style={styles.smallButton} onPress={searchFoodLibrary}>
-              <Text style={styles.smallButtonText}>Reload</Text>
-            </TouchableOpacity>
-          </View>
-          <Text style={styles.small}>Choose from seeded foods and API-backed library items first; manual entry stays as a fallback.</Text>
-          <View style={styles.quickMealGrid}>
-            {libraryFoods.slice(0, 6).map((food) => {
-              const scaled = getScaledFood(food);
-              return (
-                <TouchableOpacity
-                  key={`meal-ready-${food.id}`}
-                  style={styles.quickMealChip}
-                  onPress={() => addFoodItemToLog(food)}
-                >
-                  <Text style={styles.quickMealTitle}>{food.name}</Text>
-                  <Text style={styles.small}>
-                    {getFoodSelectedGrams(food)}g · {scaled.calories} kcal · {scaled.protein}g protein
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-          {libraryFoods.length === 0 ? (
-            <View style={styles.noticeBox}>
-              <Text style={styles.itemTitle}>Food database not loaded yet</Text>
-              <Text style={styles.small}>Tap Reload or open Food Library to pull saved meals from the backend.</Text>
-            </View>
-          ) : null}
-        </View>
-        <View style={styles.card}>
-          <Text style={styles.section}>Manual Fallback</Text>
-          <Text style={styles.fieldLabel}>Common meals</Text>
-          <View style={styles.quickMealGrid}>
-            {QUICK_MEALS.map((meal) => (
-              <TouchableOpacity
-                key={meal.name}
-                style={[styles.quickMealChip, mealName === meal.name ? styles.quickMealChipActive : null]}
-                onPress={() => applyQuickMeal(meal)}
-              >
-                <Text style={[styles.quickMealTitle, mealName === meal.name ? styles.quickMealTitleActive : null]}>
-                  {meal.name}
-                </Text>
-                <Text style={[styles.small, mealName === meal.name ? styles.quickMealMetaActive : null]}>
-                  {meal.calories} kcal
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-          <TextInput style={styles.input} value={mealName} onChangeText={setMealName} placeholder="Meal name" />
-          <Text style={styles.fieldLabel}>Calories</Text>
-          {renderQuickValueRow(["250", "400", "650", "850"], mealCalories, setMealCalories, " kcal")}
-          {renderDigitPicker("Calories", mealCalories, setMealCalories, 0, 3000, 4, " kcal")}
-          <View style={styles.row}>
-            {renderDigitPicker("Protein", mealProtein, setMealProtein, 0, 250, 3, "g")}
-            {renderDigitPicker("Carbs", mealCarbs, setMealCarbs, 0, 400, 3, "g")}
-          </View>
-          {renderDigitPicker("Fats", mealFats, setMealFats, 0, 200, 3, "g")}
-          <TouchableOpacity style={styles.fullButton} onPress={addMealAndRefresh}>
-            <Text style={styles.buttonText}>Save Meal</Text>
-          </TouchableOpacity>
-          <Text style={styles.subsection}>Local-first Nutrition Search</Text>
-          <Text style={styles.small}>Search checks saved foods first. FatSecret is only used when the local database has no matches.</Text>
-          <View style={styles.row}>
-            <TextInput style={[styles.input, styles.searchInput]} value={foodSearchQuery} onChangeText={setFoodSearchQuery} placeholder="Search foods" />
-            <TouchableOpacity style={styles.compactButton} onPress={searchFoodsForMeal}>
-              <Text style={styles.buttonText}>Search</Text>
-            </TouchableOpacity>
-          </View>
-          {foodSearchResults.map((item) => (
-            <View style={styles.listItem} key={item.foodId}>
-              <Text style={styles.itemTitle}>{item.brandName ? `${item.brandName} ${item.name}` : item.name}</Text>
-              <Text style={styles.small}>kcal {item.calories ?? "-"} | P/C/F {item.protein ?? "-"}/{item.carbs ?? "-"}/{item.fats ?? "-"}</Text>
-              <View style={styles.row}>
-                <TouchableOpacity style={styles.button} onPress={() => useFoodForMeal(item)}>
-                  <Text style={styles.buttonText}>Prefill</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.button} onPress={() => addFoodToLog(item)}>
-                  <Text style={styles.buttonText}>Add now</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          ))}
-        </View>
       </>
     );
   }
 
   function foodItemPassesLibraryFilter(food: FoodItem) {
+    const query = libraryQuery.trim().toLowerCase();
+    if (query) {
+      const searchable = [
+        food.name,
+        food.brand || "",
+        food.category || "",
+        ...(food.dietTags || [])
+      ]
+        .join(" ")
+        .toLowerCase();
+      if (!searchable.includes(query)) {
+        return false;
+      }
+    }
     if (libraryFilter === "High protein") {
       return food.protein >= 15;
     }
@@ -2090,6 +2058,7 @@ export default function App() {
 
   function renderFoodLibrary() {
     const visibleFoods = libraryFoods.filter(foodItemPassesLibraryFilter);
+    const hasSearchQuery = libraryQuery.trim().length > 0;
     return (
       <>
       {renderScreenHeader("Food Library", "Search the local demo database first", "🍽️", () => setTab("meals"))}
@@ -2098,7 +2067,10 @@ export default function App() {
           <TextInput
             style={[styles.input, styles.searchInput]}
             value={libraryQuery}
-            onChangeText={setLibraryQuery}
+            onChangeText={(value) => {
+              setLibraryQuery(value);
+              setSelectedLibraryFoodId(null);
+            }}
             placeholder="Search foods"
           />
           <TouchableOpacity style={styles.compactButton} onPress={searchFoodLibrary}>
@@ -2109,52 +2081,70 @@ export default function App() {
         {renderChoiceRow(LIBRARY_FILTERS, libraryFilter, setLibraryFilter)}
         {visibleFoods.length === 0 ? (
           <View style={styles.noticeBox}>
-            <Text style={styles.itemTitle}>Ready for food search</Text>
+            <Text style={styles.itemTitle}>
+              {hasSearchQuery ? "Oops, this food is not in the database yet." : "Ready for food search"}
+            </Text>
             <Text style={styles.small}>
-              Search the local food database seeded for the demo. Online FatSecret search remains available in Meals if credentials are configured.
+              {hasSearchQuery
+                ? "Try another keyword or ask the demo data worker to add it with calories and macros."
+                : "Search the local food database seeded for the demo. Pick a food to adjust grams and add it to today."}
             </Text>
           </View>
         ) : (
           <View style={styles.resultsBlock}>
             {visibleFoods.map((item) => {
               const scaled = getScaledFood(item);
+              const isOpen = selectedLibraryFoodId === item.id;
               return (
               <View style={styles.mealCard} key={`library-${item.id}`}>
-                <Text style={styles.itemTitle}>{item.brand ? `${item.brand} ${item.name}` : item.name}</Text>
-                <Text style={styles.small}>
-                  Base: {item.servingSize || item.category}. Selected {getFoodSelectedGrams(item)}g.
-                </Text>
-                {renderDigitPicker(
-                  "Grams",
-                  String(getFoodSelectedGrams(item)),
-                  (value) => setFoodGramSelections((current) => ({ ...current, [item.id]: value })),
-                  1,
-                  999,
-                  3,
-                  "g"
-                )}
-                <View style={styles.macroRow}>
-                  <View style={styles.macroBox}>
-                    <Text style={styles.metricLabel}>kcal</Text>
-                    <Text style={styles.itemTitle}>{scaled.calories}</Text>
+                <TouchableOpacity
+                  style={styles.sharePreview}
+                  onPress={() => setSelectedLibraryFoodId(isOpen ? null : item.id)}
+                >
+                  <View style={styles.headerRow}>
+                    <View style={styles.shareTitleBlock}>
+                      <Text style={styles.itemTitle}>{item.brand ? `${item.brand} ${item.name}` : item.name}</Text>
+                      <Text style={styles.small}>{item.servingSize || item.category} · {item.calories} kcal base</Text>
+                    </View>
+                    <Text style={styles.presetChevron}>{isOpen ? "⌄" : "›"}</Text>
                   </View>
-                  <View style={styles.macroBox}>
-                    <Text style={styles.metricLabel}>Protein</Text>
-                    <Text style={styles.itemTitle}>{scaled.protein}g</Text>
+                </TouchableOpacity>
+                {isOpen ? (
+                  <View style={styles.shareDetail}>
+                    <Text style={styles.small}>Selected {getFoodSelectedGrams(item)}g. Calories and macros update automatically.</Text>
+                    {renderDigitPicker(
+                      "Grams",
+                      String(getFoodSelectedGrams(item)),
+                      (value) => setFoodGramSelections((current) => ({ ...current, [item.id]: value })),
+                      1,
+                      999,
+                      3,
+                      "g"
+                    )}
+                    <View style={styles.macroRow}>
+                      <View style={styles.macroBox}>
+                        <Text style={styles.metricLabel}>kcal</Text>
+                        <Text style={styles.itemTitle}>{scaled.calories}</Text>
+                      </View>
+                      <View style={styles.macroBox}>
+                        <Text style={styles.metricLabel}>Protein</Text>
+                        <Text style={styles.itemTitle}>{scaled.protein}g</Text>
+                      </View>
+                      <View style={styles.macroBox}>
+                        <Text style={styles.metricLabel}>Carbs</Text>
+                        <Text style={styles.itemTitle}>{scaled.carbs}g</Text>
+                      </View>
+                    </View>
+                    <View style={styles.row}>
+                      <TouchableOpacity style={styles.button} onPress={() => useFoodItemForMeal(item)}>
+                        <Text style={styles.buttonText}>Use in Form</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={styles.button} onPress={() => addFoodItemToLog(item)}>
+                        <Text style={styles.buttonText}>Add Today</Text>
+                      </TouchableOpacity>
+                    </View>
                   </View>
-                  <View style={styles.macroBox}>
-                    <Text style={styles.metricLabel}>Carbs</Text>
-                    <Text style={styles.itemTitle}>{scaled.carbs}g</Text>
-                  </View>
-                </View>
-                <View style={styles.row}>
-                  <TouchableOpacity style={styles.button} onPress={() => useFoodItemForMeal(item)}>
-                    <Text style={styles.buttonText}>Use in form</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.button} onPress={() => addFoodItemToLog(item)}>
-                    <Text style={styles.buttonText}>Add today</Text>
-                  </TouchableOpacity>
-                </View>
+                ) : null}
               </View>
               );
             })}
@@ -2285,6 +2275,16 @@ export default function App() {
   }
 
   function renderSocial() {
+    const mealSocialFeed = socialFeed
+      .filter((post) => !isWorkoutSocialPost(post))
+      .filter((post) => socialSearchMatches(`${post.meal.name} ${post.author.name} ${post.caption}`));
+    const shareableMeals = meals.filter((meal) => socialSearchMatches(meal.name));
+    const shareableWorkoutTemplates = workoutTemplates.filter((program) =>
+      socialSearchMatches(`${program.name} ${program.type} ${program.exercises.join(" ")}`)
+    );
+    const workoutCommunity = sharedWorkoutPrograms.filter((post) =>
+      socialSearchMatches(`${post.title} ${post.author} ${post.body}`)
+    );
     return (
       <>
         {renderScreenHeader("Social", "Share meals and workout programs", "👥", loadSocialFeed)}
@@ -2304,6 +2304,15 @@ export default function App() {
             );
           })}
         </View>
+        <View style={styles.card}>
+          <Text style={styles.fieldLabel}>Search social</Text>
+          <TextInput
+            style={styles.input}
+            value={socialSearchQuery}
+            onChangeText={setSocialSearchQuery}
+            placeholder={socialMode === "Meals" ? "Search meals or people" : "Search workout programs"}
+          />
+        </View>
         {socialMode === "Meals" ? (
         <>
         <View style={styles.card}>
@@ -2314,9 +2323,9 @@ export default function App() {
             </TouchableOpacity>
           </View>
           <Text style={styles.fieldLabel}>Choose meal to share</Text>
-          {meals.length > 0 ? (
+          {shareableMeals.length > 0 ? (
             <View style={styles.segmentWrap}>
-              {meals.map((meal) => {
+              {shareableMeals.map((meal) => {
                 const selected = (selectedShareMealId || meals[0]?.id) === meal.id;
                 return (
                   <TouchableOpacity
@@ -2330,7 +2339,7 @@ export default function App() {
               })}
             </View>
           ) : (
-            <Text style={styles.small}>No meals logged today yet.</Text>
+            <Text style={styles.small}>No matching meals logged today yet.</Text>
           )}
           <TouchableOpacity style={styles.fullButton} onPress={shareSelectedMeal}>
             <Text style={styles.buttonText}>Share Selected Meal</Text>
@@ -2341,10 +2350,10 @@ export default function App() {
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.section}>Shared Meals ({socialFeed.length})</Text>
-          {socialFeed.length > 0 ? (
+          <Text style={styles.section}>Shared Meals ({mealSocialFeed.length})</Text>
+          {mealSocialFeed.length > 0 ? (
             <View style={styles.resultsBlock}>
-              {socialFeed.map((post) => (
+              {mealSocialFeed.map((post) => (
                 <View style={styles.listItem} key={`social-${post.id}`}>
                   <TouchableOpacity
                     style={styles.sharePreview}
@@ -2429,7 +2438,7 @@ export default function App() {
         <View style={styles.card}>
           <Text style={styles.section}>Choose Workout Program to Share</Text>
           <View style={styles.workoutPresetList}>
-            {workoutTemplates.map((program) => {
+            {shareableWorkoutTemplates.map((program) => {
               const selected = selectedShareWorkoutName === program.name;
               return (
                 <TouchableOpacity
@@ -2448,21 +2457,79 @@ export default function App() {
               );
             })}
           </View>
+          {shareableWorkoutTemplates.length === 0 ? (
+            <Text style={styles.small}>No workout programs match your search.</Text>
+          ) : null}
           <TouchableOpacity style={styles.fullButton} onPress={() => shareWorkoutProgram()}>
             <Text style={styles.buttonText}>Share Selected Program</Text>
           </TouchableOpacity>
         </View>
         <View style={styles.card}>
-          <Text style={styles.section}>Workout Community</Text>
+          <Text style={styles.section}>Workout Community ({workoutCommunity.length})</Text>
           <View style={styles.resultsBlock}>
-            {sharedWorkoutPrograms.map((post) => (
-              <View style={styles.listItem} key={post.title}>
-                <Text style={styles.itemTitle}>{post.title}</Text>
-                <Text style={styles.small}>{post.meta}</Text>
-                <Text style={styles.small}>{post.body}</Text>
+            {workoutCommunity.map((post) => (
+              <View style={styles.listItem} key={post.id}>
+                <TouchableOpacity
+                  style={styles.sharePreview}
+                  onPress={() => setOpenedWorkoutShareId(openedWorkoutShareId === post.id ? null : post.id)}
+                >
+                  <View style={styles.headerRow}>
+                    <View style={styles.shareTitleBlock}>
+                      <Text style={styles.itemTitle}>{post.title}</Text>
+                      <Text style={styles.small}>
+                        {post.author} | {post.visibility} | {post.likeCount} likes | {post.commentCount} comments
+                      </Text>
+                    </View>
+                    <Text style={styles.presetChevron}>{openedWorkoutShareId === post.id ? "⌄" : "›"}</Text>
+                  </View>
+                </TouchableOpacity>
+                {openedWorkoutShareId === post.id ? (
+                  <View style={styles.shareDetail}>
+                    <Text style={styles.small}>{post.body}</Text>
+                    <View style={styles.row}>
+                      <TouchableOpacity style={styles.button} onPress={() => likeWorkoutShare(post.id)}>
+                        <Text style={styles.buttonText}>Like</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={styles.button} onPress={() => {
+                        setSelectedShareWorkoutName(post.title.replace(/^.* shared /, "").replace(/^You shared /, ""));
+                        setStatus("Workout program selected from community");
+                      }}>
+                        <Text style={styles.buttonText}>Save Idea</Text>
+                      </TouchableOpacity>
+                    </View>
+                    <Text style={styles.fieldLabel}>Comments</Text>
+                    {post.comments.length > 0 ? (
+                      post.comments.slice(-3).map((comment, index) => (
+                        <View style={styles.commentBubble} key={`${post.id}-comment-${index}`}>
+                          <Text style={styles.itemTitle}>{index === 0 ? post.author : "Community"}</Text>
+                          <Text style={styles.small}>{comment}</Text>
+                        </View>
+                      ))
+                    ) : (
+                      <Text style={styles.small}>No comments yet.</Text>
+                    )}
+                    <View style={styles.row}>
+                      <TextInput
+                        style={[styles.input, styles.searchInput]}
+                        value={workoutCommentText}
+                        onChangeText={setWorkoutCommentText}
+                        placeholder="Write a comment"
+                      />
+                      <TouchableOpacity style={styles.compactButton} onPress={() => commentWorkoutShare(post.id)}>
+                        <Text style={styles.buttonText}>Post</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ) : null}
               </View>
             ))}
           </View>
+          {workoutCommunity.length === 0 ? (
+            <View style={styles.noticeBox}>
+              <Text style={styles.itemTitle}>No workout posts found</Text>
+              <Text style={styles.small}>Try another search or share a workout program.</Text>
+            </View>
+          ) : null}
         </View>
         </>
         )}
