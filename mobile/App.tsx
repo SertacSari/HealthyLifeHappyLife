@@ -271,6 +271,10 @@ function formatMetric(value: number | null | undefined, suffix = "") {
   return `${Math.round(value)}${suffix}`;
 }
 
+function formatMacro(current: number | null | undefined, target: number | null | undefined) {
+  return `${formatMetric(current, "g")} / ${target && target > 0 ? formatMetric(target, "g") : "--"}`;
+}
+
 function formatSourceLabel(value?: string) {
   if (!value) {
     return "Rules";
@@ -532,6 +536,7 @@ export default function App() {
   const [openedWorkoutShareId, setOpenedWorkoutShareId] = useState<number | null>(null);
   const [socialCommentText, setSocialCommentText] = useState("");
   const [workoutCommentText, setWorkoutCommentText] = useState("");
+  const [likedWorkoutShareIds, setLikedWorkoutShareIds] = useState<number[]>([]);
   const [selectedShareMealId, setSelectedShareMealId] = useState<number | null>(null);
   const [selectedShareWorkoutName, setSelectedShareWorkoutName] = useState(WORKOUT_PROGRAM_TEMPLATES[0].name);
   const [sharedWorkoutPrograms, setSharedWorkoutPrograms] = useState(DEMO_SOCIAL_PROGRAMS);
@@ -1288,9 +1293,10 @@ export default function App() {
       return;
     }
     try {
-      await likeSocialPost(token, post.id);
+      const result = await likeSocialPost(token, post.id);
       await loadSocialFeed();
-      setStatus("Shared meal liked");
+      setOpenedSocialPostId(post.id);
+      setStatus(result.liked ? "Shared meal liked" : "Shared meal unliked");
     } catch (error) {
       setStatus(`Like unavailable: ${String(error)}`);
     }
@@ -1328,12 +1334,18 @@ export default function App() {
   }
 
   function likeWorkoutShare(postId: number) {
+    const alreadyLiked = likedWorkoutShareIds.includes(postId);
     setSharedWorkoutPrograms((current) =>
       current.map((post) =>
-        post.id === postId ? { ...post, likeCount: post.likeCount + 1 } : post
+        post.id === postId
+          ? { ...post, likeCount: Math.max(0, post.likeCount + (alreadyLiked ? -1 : 1)) }
+          : post
       )
     );
-    setStatus("Workout program liked");
+    setLikedWorkoutShareIds((current) =>
+      alreadyLiked ? current.filter((id) => id !== postId) : [...current, postId]
+    );
+    setStatus(alreadyLiked ? "Workout program unliked" : "Workout program liked");
   }
 
   function commentWorkoutShare(postId: number) {
@@ -1851,95 +1863,11 @@ export default function App() {
         </View>
 
         <View style={styles.card}>
-          {targets ? (
-            <>
-              <View style={styles.headerRow}>
-                <Text style={styles.section}>Nutrition</Text>
-                <Text style={styles.sourcePill}>{targets.source}</Text>
-              </View>
-              {summary ? renderProgressCard("Calories", summary.totalCaloriesIn, targets.calories, "") : null}
-              <View style={styles.targetGrid}>
-                <View style={styles.metricTile}>
-                  <Text style={styles.metricDot}>●</Text>
-                  <Text style={styles.metricValue}>{summary?.macros.protein || 0}g / {targets.protein}g</Text>
-                  <Text style={styles.metricLabel}>Protein</Text>
-                </View>
-                <View style={styles.metricTile}>
-                  <Text style={styles.metricDotAlt}>●</Text>
-                  <Text style={styles.metricValue}>{summary?.macros.carbs || 0}g / {targets.carbs}g</Text>
-                  <Text style={styles.metricLabel}>Carbs</Text>
-                </View>
-                <View style={styles.metricTile}>
-                  <Text style={styles.metricDotWarn}>●</Text>
-                  <Text style={styles.metricValue}>{summary?.macros.fats || 0}g / {targets.fats}g</Text>
-                  <Text style={styles.metricLabel}>Fats</Text>
-                </View>
-              </View>
-            </>
-          ) : (
-            <View style={styles.noticeBox}>
-              <Text style={styles.itemTitle}>Complete onboarding</Text>
-              <Text style={styles.small}>
-                Nutrition targets need profile goals or onboarding data. These estimates are general wellness guidance,
-                not medical advice.
-              </Text>
-              <TouchableOpacity style={styles.secondaryButton} onPress={() => setTab("profile")}>
-                <Text style={styles.secondaryButtonText}>Open Onboarding</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-          {!onboardingComplete ? (
-            <Text style={styles.small}>Personalized macro targets improve after onboarding is complete.</Text>
-          ) : null}
-          {summary ? (
-            <View style={styles.statsBlock}>
-              <View style={styles.summaryGrid}>
-                <View style={styles.summaryTile}>
-                  <Text style={styles.metricValue}>{summary.netCalories}</Text>
-                  <Text style={styles.metricLabel}>Net calories</Text>
-                </View>
-                <View style={styles.summaryTile}>
-                  <Text style={styles.metricValue}>{summary.workoutMinutes}</Text>
-                  <Text style={styles.metricLabel}>Workout min</Text>
-                </View>
-                <View style={styles.summaryTile}>
-                  <Text style={styles.metricValue}>{summary.mealsCount}</Text>
-                  <Text style={styles.metricLabel}>Meals</Text>
-                </View>
-                <View style={styles.summaryTile}>
-                  <Text style={styles.metricValue}>{summary.workoutsCount}</Text>
-                  <Text style={styles.metricLabel}>Workouts</Text>
-                </View>
-              </View>
-            </View>
-          ) : (
-            <Text style={styles.small}>No summary loaded yet.</Text>
-          )}
-        </View>
-
-        <View style={styles.card}>
-          <View style={styles.headerRow}>
-            <Text style={styles.section}>Hydration</Text>
-            <Text style={styles.sourcePill}>{waterTargetMl} ml target</Text>
-          </View>
-          {renderProgressCard("Water consumed", waterMl, waterTargetMl, " ml")}
-          <View style={styles.row}>
-            <TouchableOpacity style={styles.button} onPress={() => setWaterMl((current) => Math.max(0, current - 250))}>
-              <Text style={styles.buttonText}>-250 ml</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.button} onPress={() => setWaterMl((current) => current + 250)}>
-              <Text style={styles.buttonText}>+250 ml</Text>
-            </TouchableOpacity>
-          </View>
-          <Text style={styles.small}>Target uses a general wellness estimate of 35 ml per kg body weight.</Text>
-        </View>
-
-        <View style={styles.card}>
           <View style={styles.headerRow}>
             <Text style={styles.section}>Daily Check-in</Text>
             <TouchableOpacity style={styles.smallButton} onPress={() => setShowCheckInEditor((current) => !current)}>
               <Text style={styles.smallButtonText}>
-                {showCheckInEditor ? "Close" : checkInSaved ? "Edit Daily Check-in" : "Add Check-in"}
+                {showCheckInEditor ? "Close" : checkInSaved ? "Edit" : "Add"}
               </Text>
             </TouchableOpacity>
           </View>
@@ -1969,6 +1897,90 @@ export default function App() {
               </TouchableOpacity>
             </>
           ) : null}
+        </View>
+
+        <View style={styles.card}>
+          {targets ? (
+            <>
+              <View style={styles.headerRow}>
+                <Text style={styles.section}>Nutrition</Text>
+                <Text style={styles.sourcePill}>{targets.source}</Text>
+              </View>
+              {summary ? renderProgressCard("Calories", summary.totalCaloriesIn, targets.calories, "") : null}
+              <View style={styles.targetGrid}>
+                <View style={styles.metricTile}>
+                  <Text style={styles.metricDot}>●</Text>
+                  <Text style={styles.metricValue}>{formatMacro(summary?.macros.protein, targets.protein)}</Text>
+                  <Text style={styles.metricLabel}>Protein</Text>
+                </View>
+                <View style={styles.metricTile}>
+                  <Text style={styles.metricDotAlt}>●</Text>
+                  <Text style={styles.metricValue}>{formatMacro(summary?.macros.carbs, targets.carbs)}</Text>
+                  <Text style={styles.metricLabel}>Carbs</Text>
+                </View>
+                <View style={styles.metricTile}>
+                  <Text style={styles.metricDotWarn}>●</Text>
+                  <Text style={styles.metricValue}>{formatMacro(summary?.macros.fats, targets.fats)}</Text>
+                  <Text style={styles.metricLabel}>Fats</Text>
+                </View>
+              </View>
+            </>
+          ) : (
+            <View style={styles.noticeBox}>
+              <Text style={styles.itemTitle}>Complete onboarding</Text>
+              <Text style={styles.small}>
+                Nutrition targets need profile goals or onboarding data. These estimates are general wellness guidance,
+                not medical advice.
+              </Text>
+              <TouchableOpacity style={styles.secondaryButton} onPress={() => setTab("profile")}>
+                <Text style={styles.secondaryButtonText}>Open Onboarding</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+          {!onboardingComplete ? (
+            <Text style={styles.small}>Personalized macro targets improve after onboarding is complete.</Text>
+          ) : null}
+          {summary ? (
+            <View style={styles.statsBlock}>
+              <View style={styles.summaryGrid}>
+                <View style={styles.summaryTile}>
+                  <Text style={styles.metricValue}>{formatMetric(summary.netCalories)}</Text>
+                  <Text style={styles.metricLabel}>Net calories</Text>
+                </View>
+                <View style={styles.summaryTile}>
+                  <Text style={styles.metricValue}>{formatMetric(summary.workoutMinutes)}</Text>
+                  <Text style={styles.metricLabel}>Workout min</Text>
+                </View>
+                <View style={styles.summaryTile}>
+                  <Text style={styles.metricValue}>{formatMetric(summary.mealsCount)}</Text>
+                  <Text style={styles.metricLabel}>Meals</Text>
+                </View>
+                <View style={styles.summaryTile}>
+                  <Text style={styles.metricValue}>{formatMetric(summary.workoutsCount)}</Text>
+                  <Text style={styles.metricLabel}>Workouts</Text>
+                </View>
+              </View>
+            </View>
+          ) : (
+            <Text style={styles.small}>No summary loaded yet.</Text>
+          )}
+        </View>
+
+        <View style={styles.card}>
+          <View style={styles.headerRow}>
+            <Text style={styles.section}>Hydration</Text>
+            <Text style={styles.sourcePill}>{waterTargetMl} ml target</Text>
+          </View>
+          {renderProgressCard("Water consumed", waterMl, waterTargetMl, " ml")}
+          <View style={styles.row}>
+            <TouchableOpacity style={styles.button} onPress={() => setWaterMl((current) => Math.max(0, current - 250))}>
+              <Text style={styles.buttonText}>-250 ml</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.button} onPress={() => setWaterMl((current) => current + 250)}>
+              <Text style={styles.buttonText}>+250 ml</Text>
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.small}>Target uses a general wellness estimate of 35 ml per kg body weight.</Text>
         </View>
 
         <View style={styles.card}>
@@ -2427,7 +2439,7 @@ export default function App() {
                       </View>
                       <View style={styles.row}>
                         <TouchableOpacity style={styles.button} onPress={() => likeSharedMeal(post)}>
-                          <Text style={styles.buttonText}>Like</Text>
+                          <Text style={styles.buttonText}>{post.likedByViewer ? "Unlike" : "Like"}</Text>
                         </TouchableOpacity>
                         <TouchableOpacity style={styles.button} onPress={() => copySharedMeal(post)}>
                           <Text style={styles.buttonText}>Copy to Log</Text>
@@ -2523,7 +2535,9 @@ export default function App() {
                     <Text style={styles.small}>{post.body}</Text>
                     <View style={styles.row}>
                       <TouchableOpacity style={styles.button} onPress={() => likeWorkoutShare(post.id)}>
-                        <Text style={styles.buttonText}>Like</Text>
+                        <Text style={styles.buttonText}>
+                          {likedWorkoutShareIds.includes(post.id) ? "Unlike" : "Like"}
+                        </Text>
                       </TouchableOpacity>
                       <TouchableOpacity style={styles.button} onPress={() => {
                         setSelectedShareWorkoutName(post.title.replace(/^.* shared /, "").replace(/^You shared /, ""));

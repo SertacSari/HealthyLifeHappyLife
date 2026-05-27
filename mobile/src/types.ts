@@ -432,7 +432,7 @@ export type CreateSocialPostPayload = {
 };
 
 export type SocialPostLikeResponse = {
-  liked: true;
+  liked: boolean;
   post: SocialPost;
 };
 

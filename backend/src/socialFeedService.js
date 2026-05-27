@@ -256,16 +256,19 @@ function likePost(db, userId, postId) {
   ensureSocialShape(db);
   assertUserExists(db, userId);
   const post = findVisiblePost(db, userId, postId);
-  const existing = db.postLikes.find((item) => item.postId === postId && item.userId === userId);
-  if (!existing) {
+  const existingIndex = db.postLikes.findIndex((item) => item.postId === postId && item.userId === userId);
+  const liked = existingIndex === -1;
+  if (liked) {
     db.postLikes.push({
       postId,
       userId,
       createdAt: new Date().toISOString()
     });
+  } else {
+    db.postLikes.splice(existingIndex, 1);
   }
   return {
-    liked: true,
+    liked,
     post: renderPost(db, userId, post)
   };
 }

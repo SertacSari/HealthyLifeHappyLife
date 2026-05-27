@@ -95,7 +95,7 @@ test("feed visibility supports public, mutual-friends, and private posts", () =>
   assert.deepEqual(strangerFeedIds, [publicPost.id]);
 });
 
-test("likes are idempotent and comments attach to visible posts", () => {
+test("likes toggle once per viewer and comments attach to visible posts", () => {
   const db = createDb();
   const users = createUsers(db);
   const post = createMealPost(db, users.owner.userId, {
@@ -106,8 +106,14 @@ test("likes are idempotent and comments attach to visible posts", () => {
   const firstLike = likePost(db, users.friend.userId, post.id);
   const secondLike = likePost(db, users.friend.userId, post.id);
   assert.equal(firstLike.post.likeCount, 1);
-  assert.equal(secondLike.post.likeCount, 1);
-  assert.equal(db.postLikes.length, 1);
+  assert.equal(firstLike.liked, true);
+  assert.equal(secondLike.post.likeCount, 0);
+  assert.equal(secondLike.liked, false);
+  assert.equal(db.postLikes.length, 0);
+
+  const thirdLike = likePost(db, users.friend.userId, post.id);
+  assert.equal(thirdLike.post.likeCount, 1);
+  assert.equal(thirdLike.liked, true);
 
   const commentResult = commentOnPost(db, users.friend.userId, post.id, "Looks good.");
   assert.equal(commentResult.comment.text, "Looks good.");

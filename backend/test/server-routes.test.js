@@ -278,6 +278,22 @@ test("HTTP social post create, feed, like, comment, and copy-to-log are wired", 
     });
     assert.equal(likeResult.response.status, 200);
     assert.equal(likeResult.body.post.likeCount, 1);
+    assert.equal(likeResult.body.liked, true);
+
+    const unlikeResult = await requestJson(server, "/social/posts/like", {
+      method: "POST",
+      headers: authHeaders(viewer),
+      body: JSON.stringify({ postId: createResult.body.post.id })
+    });
+    assert.equal(unlikeResult.response.status, 200);
+    assert.equal(unlikeResult.body.post.likeCount, 0);
+    assert.equal(unlikeResult.body.liked, false);
+
+    await requestJson(server, "/social/posts/like", {
+      method: "POST",
+      headers: authHeaders(viewer),
+      body: JSON.stringify({ postId: createResult.body.post.id })
+    });
 
     const commentResult = await requestJson(server, "/social/posts/comment", {
       method: "POST",
