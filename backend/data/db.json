@@ -148,7 +148,7 @@
     {
       "id": 8,
       "userId": 1,
-      "name": "Greek Yogurt",
+      "name": "Yogurt",
       "calories": 100,
       "protein": 17,
       "carbs": 6,
@@ -854,7 +854,7 @@
       "createdAt": "2026-01-01T00:00:00.000Z",
       "updatedAt": "2026-01-01T00:00:00.000Z",
       "id": 3,
-      "name": "Greek Yogurt",
+      "name": "Yogurt",
       "brand": "HealthyLife Demo",
       "category": "dairy",
       "servingSize": "170 g",

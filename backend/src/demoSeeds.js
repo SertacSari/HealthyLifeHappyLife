@@ -29,7 +29,7 @@ const seedFoodItems = [
   },
   {
     id: 3,
-    name: "Greek Yogurt",
+    name: "Yogurt",
     brand: "HealthyLife Demo",
     category: "dairy",
     servingSize: "170 g",
